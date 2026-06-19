@@ -81,7 +81,7 @@ st.markdown("""
 @st.cache_data
 def load_data():
     # Đọc dữ liệu từ file bạn đã cung cấp
-    df = pd.read_csv(r"C:\Users\HP\Downloads\cs_final_df_processed.csv")
+    df = pd.read_csv('Data/processed/cs_final_df_processed.csv')
     # Làm sạch các giá trị NA trong các cột dùng để lọc
     df = df.dropna(subset=['Generation', 'Occupation', 'Income_Cleaned', 'LLM_Familiarity_Cleaned'])
     return df
