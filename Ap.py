@@ -10,6 +10,72 @@ st.set_page_config(
     page_icon="💻",
     layout="wide"
 )
+# 2. HỆ THỐNG CSS TẠO HIỆU ỨNG NỔI 3D & CARD PREMIUM
+st.markdown("""
+<style>
+    /* 1. Tạo khối nổi 3D cho các ô Metric mặc định của Streamlit */
+    div[data-testid="stMetric"] {
+        background: linear-gradient(145deg, #ffffff, #f6f8fb);
+        box-shadow: 5px 5px 15px #e2e8f0, -5px -5px 15px #ffffff;
+        border-radius: 16px;
+        padding: 22px 18px;
+        border: 1px solid rgba(226, 232, 240, 0.8);
+        transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+    }
+    /* Hiệu ứng tương tác 3D nâng lên rõ rệt khi di chuột vào khối chỉ số */
+    div[data-testid="stMetric"]:hover {
+        transform: translateY(-6px) scale(1.01);
+        box-shadow: 12px 12px 28px #cbd5e1, -8px -8px 20px #ffffff;
+    }
+    
+    /* 2. Định dạng chữ trong khối Metric */
+    div[data-testid="stMetricLabel"] {
+        font-size: 14px !important;
+        color: #64748B !important;
+        font-weight: 600 !important;
+    }
+    div[data-testid="stMetricValue"] {
+        font-size: 28px !important;
+        font-weight: 800 !important;
+        color: #0F172A !important;
+    }
+
+    /* 3. Tạo class Thẻ Khối 3D tùy chỉnh cho vùng nội dung/đồ thị */
+    .card-3d {
+        background: #ffffff;
+        padding: 24px;
+        border-radius: 20px;
+        box-shadow: 0 10px 25px rgba(15, 23, 42, 0.06), 0 1px 3px rgba(15, 23, 42, 0.02);
+        border: 1px solid rgba(241, 245, 249, 0.9);
+        margin-bottom: 25px;
+        transition: all 0.3s ease;
+    }
+    .card-3d:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 20px 35px rgba(15, 23, 42, 0.12);
+    }
+
+    /* 4. Làm nổi khối vùng Sidebar bộ lọc bên trái */
+    section[data-testid="stSidebar"] {
+        background-color: #f8fafc;
+        border-right: 1px solid #e2e8f0;
+        box-shadow: 4px 0px 20px rgba(15, 23, 42, 0.04);
+    }
+
+    /* 5. Định dạng lại khối Tabs thanh lịch */
+    button[data-baseweb="tab"] {
+        font-size: 15px !important;
+        font-weight: 600 !important;
+        border-radius: 8px 8px 0px 0px;
+        transition: all 0.2s ease;
+    }
+    button[data-baseweb="tab"][aria-selected="true"] {
+        background-color: rgba(59, 130, 246, 0.08) !important;
+        color: #3b82f6 !important;
+    }
+</style>
+""", unsafe_allow_html=True)
+
 
 # 2. HÀM TẢI VÀ XỬ LÝ DỮ LIỆU
 @st.cache_data
@@ -103,27 +169,49 @@ with tab1:
     avg_llm = filtered_df['LLM_Familiarity_Cleaned'].mean()
     col4.metric("Mức am hiểu AI trung bình", f"{avg_llm:.2f} / 5" if pd.notnull(avg_llm) else "0")
 
-    st.subheader("1.2 Xem trước bộ dữ liệu (Data Preview)")
-    st.dataframe(filtered_df.head(15), use_container_width=True)
+    st.subheader("1.2 Data Preview")
+    st.dataframe(filtered_df.head(), use_container_width=True)
     
-    st.subheader("1.3 Phân phối nhân sự học máy tính")
+    st.subheader("1.3 Đặc trưng cấu trúc và Toàn cảnh nhân khẩu học")
+    
     c1, c2 = st.columns(2)
     with c1:
+        st.markdown("<div class='card-3d'>", unsafe_allow_html=True)
         if not filtered_df.empty:
-            fig1, ax1 = plt.subplots(figsize=(6, 4))
-            sns.countplot(data=filtered_df, x='Generation', order=['Gen Z', 'Millennials', 'Gen X+'], palette='viridis', ax=ax1)
-            ax1.set_title("Phân phối nhân sự theo Thế hệ")
+            # Ý tưởng 1: Tính toán ma trận chéo tỷ lệ phần trăm thế hệ trong từng nhóm nghề
+            crosstab_matrix = pd.crosstab(
+                filtered_df['Occupation'], 
+                filtered_df['Generation'], 
+                normalize='index'
+            ) * 100
+            
+            # Sắp xếp lại thứ tự cột cho logic theo thời gian nếu có đủ dữ liệu
+            desired_order = [g for g in ['Gen Z', 'Millennials', 'Gen X+'] if g in crosstab_matrix.columns]
+            crosstab_matrix = crosstab_matrix[desired_order]
+            
+            fig1, ax1 = plt.subplots(figsize=(7, 4.8))
+            # Vẽ bản đồ nhiệt sang trọng với bảng màu Blues
+            sns.heatmap(
+                crosstab_matrix, 
+                annot=True, 
+                fmt=".1f", 
+                cmap="Blues", 
+                linewidths=0.5,
+                cbar_kws={'label': 'Tỷ lệ cấu trúc (%)'}, 
+                annot_kws={"weight": "bold", "size": 10},
+                ax=ax1
+            )
+            ax1.set_title("Ma trận phân bổ Thế hệ trong từng Phân khúc Nghề nghiệp", fontsize=11, fontweight='bold', color='#1E293B', pad=12)
+            ax1.set_ylabel("")
             ax1.set_xlabel("Thế hệ")
-            ax1.set_ylabel("Số lượng")
+            plt.xticks(rotation=0)
+            plt.tight_layout()
             st.pyplot(fig1)
-    with c2:
-        if not filtered_df.empty:
-            fig2, ax2 = plt.subplots(figsize=(6, 4))
-            sns.histplot(data=filtered_df, x='Income_Cleaned', bins=15, kde=True, color='teal', ax=ax2)
-            ax2.set_title("Phân phối Thu nhập")
-            ax2.set_xlabel("Thu nhập (USD)")
-            ax2.set_ylabel("Tần suất")
-            st.pyplot(fig2)
+            st.caption("💡 **Insight mô tả:** Giúp nhận diện ngay lập tức nhóm ngành nào đang có xu hướng 'trẻ hóa' (tỷ lệ Gen Z cao) hoặc ngành nào giữ chân được nhân sự bền vững (Millennials & Gen X+ chiếm ưu thế).")
+        else:
+            st.warning("Không có dữ liệu phù hợp với bộ lọc.")
+        st.markdown("</div>", unsafe_allow_html=True)
+        
 
 # ==========================================
 # TAB 2: TÁC ĐỘNG CỦA AI ĐẾN CÔNG VIỆC
