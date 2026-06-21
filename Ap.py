@@ -224,28 +224,41 @@ with tab1:
     else:
         st.warning("Không có dữ liệu phù hợp với bộ lọc.")
     st.markdown('</div>', unsafe_allow_html=True)
- # Vẽ bản đồ nhiệt sang trọng với bảng màu Blues
-            sns.heatmap(
-                crosstab_matrix, 
-                annot=True, 
-                fmt=".1f", 
-                cmap="Blues", 
-                linewidths=0.5,
-                cbar_kws={'label': 'Tỷ lệ cấu trúc (%)'}, 
-                annot_kws={"weight": "bold", "size": 10},
-                ax=ax1
-            )
-            ax1.set_title("Ma trận phân bổ Thế hệ trong từng Phân khúc Nghề nghiệp", fontsize=11, fontweight='bold', color='#1E293B', pad=12)
-            ax1.set_ylabel("")
-            ax1.set_xlabel("Thế hệ")
-            plt.xticks(rotation=0)
-            plt.tight_layout()
-            st.pyplot(fig1)
-            st.caption("💡 **Insight mô tả:** Giúp nhận diện ngay lập tức nhóm ngành nào đang có xu hướng 'trẻ hóa' (tỷ lệ Gen Z cao) hoặc ngành nào giữ chân được nhân sự bền vững (Millennials & Gen X+ chiếm ưu thế).")
-        else:
-            st.warning("Không có dữ liệu phù hợp với bộ lọc.")
-        st.markdown("</div>", unsafe_allow_html=True)
-
+# Khối 3: BIỂU ĐỒ MỚI THÊM VÀO Ở PHÍA DƯỚI CÙNG TAB 1
+    st.markdown('<div class="card-3d"><div class="section-title">💰 Biểu đồ 1B: Mức thu nhập trung bình theo Nhóm nghề nghiệp</div>', unsafe_allow_html=True)
+    if not filtered_df.empty:
+        # Tính toán giá trị thu nhập trung bình tăng dần theo nghề nghiệp để biểu đồ đẹp hơn
+        income_ordered = filtered_df.groupby('Occupation')['Income_Cleaned'].mean().sort_values(ascending=False).index
+        
+        fig2, ax2 = plt.subplots(figsize=(12, 5))
+        sns.barplot(
+            data=filtered_df,
+            y='Occupation',
+            x='Income_Cleaned',
+            order=income_ordered,
+            palette='GnBu_r',  # Bảng màu xanh Mint to Blue sang trọng, đồng bộ với tông Blues của Heatmap
+            errorbar=None,
+            ax=ax2,
+            width=0.6
+        )
+        
+        # Thêm nhãn số tiền ($) trực tiếp lên các thanh bar
+        for container in ax2.containers:
+            ax2.bar_label(container, fmt='$%:,.0f', padding=5, fontweight='bold', color='#1E293B', size=9)
+            
+        ax2.set_title("Xếp hạng Thu nhập trung bình năm giữa các Vị trí công việc (USD)", fontsize=11, fontweight='bold', color='#1E293B', pad=12)
+        ax2.set_xlabel("Thu nhập trung bình (USD)")
+        ax2.set_ylabel("")
+        
+        # Định dạng lại các mốc trục X hiển thị dạng nghìn đô cho thoáng (ví dụ: 50k, 100k)
+        ax2.xaxis.set_major_formatter(plt.FuncFormatter(lambda x, p: f"${x*1e-3:,.0f}k"))
+        
+        plt.tight_layout()
+        st.pyplot(fig2)
+        st.caption("💡 **Insight mô tả:** Nhận diện phân khúc nghề nghiệp có giá trị thương mại cao. Khi kết hợp với Biểu đồ 1A, bạn có thể phân tích xem các nhóm ngành thu nhập cao đang được dẫn dắt bởi thế hệ nhân sự nào.")
+    else:
+        st.warning("Không có dữ liệu phù hợp với bộ lọc để tính toán thu nhập.")
+    st.markdown('</div>', unsafe_allow_html=True)
 # ==========================================
 # TAB 2: TÁC ĐỘNG CỦA AI ĐẾN CÔNG VIỆC (DỌC)
 # ==========================================
