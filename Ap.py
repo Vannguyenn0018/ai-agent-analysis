@@ -172,9 +172,6 @@ with tab1:
     st.dataframe(filtered_df.head(), use_container_width=True)
     
     st.subheader("1.3 Đặc trưng cấu trúc và Toàn cảnh nhân khẩu học")
-    
-    c1 = st.columns(1)
-    with c1:
         if not filtered_df.empty:
             # Ý tưởng 1: Tính toán ma trận chéo tỷ lệ phần trăm thế hệ trong từng nhóm nghề
             crosstab_matrix = pd.crosstab(
