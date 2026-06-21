@@ -26,7 +26,7 @@ plt.rcParams.update({
     'figure.titlesize': 14
 })
 
-# Hệ thống CSS nâng cấp: Hiệu ứng nổi 3D mượt mà & Bảng màu Modern Tech
+# Hệ thống CSS nâng cấp: Hiệu ứng nổi 3D mượt mà & Đổi màu bộ lọc từ Đỏ sang Xanh Dương Tech
 st.markdown("""
 <style>
     /* 1. Khối nổi 3D cho các ô Metric */
@@ -71,7 +71,7 @@ st.markdown("""
         box-shadow: 0 15px 35px rgba(15, 23, 42, 0.06);
     }
 
-    /* 3. Tinh chỉnh Sidebar */
+    /* 3. Tinh chỉnh Sidebar & Đổi màu các thành phần bộ lọc (Gỡ bỏ sắc đỏ) */
     section[data-testid="stSidebar"] {
         background-color: #f8fafc;
         border-right: 1px solid #e2e8f0;
@@ -83,6 +83,33 @@ st.markdown("""
         margin-bottom: 20px;
         padding-bottom: 10px;
         border-bottom: 2px solid #3b82f6;
+    }
+    
+    /* Đổi màu nền các Tag được chọn trong ô Multiselect thành Xanh Dương */
+    span[data-baseweb="tag"] {
+        background-color: #3b82f6 !important;
+        color: #ffffff !important;
+        border-radius: 6px !important;
+        padding: 4px 8px !important;
+    }
+    span[data-baseweb="tag"] button, 
+    span[data-baseweb="tag"] svg {
+        fill: #ffffff !important;
+        color: #ffffff !important;
+    }
+    
+    /* Đổi màu thanh trượt Slider & Nút kéo */
+    div[data-testid="stSlider"] div[role="slider"] {
+        background-color: #3b82f6 !important;
+        border: 2px solid #ffffff !important;
+        box-shadow: 0px 2px 6px rgba(59, 130, 246, 0.4) !important;
+    }
+    div[data-testid="stSlider"] div[data-inner="true"] {
+        background-color: #3b82f6 !important;
+    }
+    div[data-baseweb="select"] > div:focus-within {
+        border-color: #3b82f6 !important;
+        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15) !important;
     }
 
     /* 4. Định dạng Tabs Hiện đại */
@@ -187,7 +214,6 @@ tab1, tab2, tab3, tab4 = st.tabs([
 with tab1:
     st.markdown('<div class="section-title">1.1 Chỉ số tổng quan toàn ngành</div>', unsafe_allow_html=True)
     
-    # Giữ phần metric nằm ngang vì đây là các thẻ ngắn, tiết kiệm không gian đầu trang
     col1, col2, col3, col4 = st.columns(4)
     col1.metric("Mẫu khảo sát (sau lọc)", f"{len(filtered_df):,}")
     col2.metric("Số lượng nhóm nghề", filtered_df['Occupation'].nunique())
@@ -205,29 +231,30 @@ with tab1:
     st.dataframe(filtered_df.head(6), use_container_width=True)
     st.markdown('</div>', unsafe_allow_html=True)
         
-    # Khối 2: Biểu đồ nhiệt Full-width (Tăng kích thước figsize rộng hơn để không bị lỗi đè chữ)
+    # Khối 2: Biểu đồ nhiệt Full-width (Kích thước lớn rộng rãi, không đè chữ)
     st.markdown('<div class="card-3d"><div class="section-title">1.3 Đặc trưng cấu trúc và Toàn cảnh nhân khẩu học</div>', unsafe_allow_html=True)
     if not filtered_df.empty:
         crosstab_matrix = pd.crosstab(filtered_df['Occupation'], filtered_df['Generation'], normalize='index') * 100
         desired_order = [g for g in ['Gen Z', 'Millennials', 'Gen X+'] if g in crosstab_matrix.columns]
         crosstab_matrix = crosstab_matrix[desired_order]
         
-        # Tăng kích thước rộng theo chiều ngang (12, 5) để hiển thị trọn vẹn tên các Occupation
         fig1, ax1 = plt.subplots(figsize=(12, 5))
-        sns.heatmap(crosstab_matrix, annot=True, fmt=".1f", cmap="Blues", linewidths=1,
-                    cbar_kws={'label': '% Tỷ lệ cấu trúc'}, annot_kws={"weight": "bold", "size": 10}, ax=ax1)
+        sns.heatmap(crosstab_matrix, annot=True, fmt=".1f", cmap="Blues", linewidths=0.5,
+                    cbar_kws={'label': 'Tỷ lệ cấu trúc (%)'}, annot_kws={"weight": "bold", "size": 10}, ax=ax1)
+        ax1.set_title("Ma trận phân bổ Thế hệ trong từng Phân khúc Nghề nghiệp", fontsize=11, fontweight='bold', color='#1E293B', pad=12)
         ax1.set_ylabel("")
         ax1.set_xlabel("Thế hệ")
         plt.xticks(rotation=0)
         plt.tight_layout()
         st.pyplot(fig1)
+        st.caption("💡 **Insight mô tả:** Giúp nhận diện ngay lập tức nhóm ngành nào đang có xu hướng 'trẻ hóa' (tỷ lệ Gen Z cao) hoặc ngành nào giữ chân được nhân sự bền vững (Millennials & Gen X+ chiếm ưu thế).")
     else:
         st.warning("Không có dữ liệu phù hợp với bộ lọc.")
     st.markdown('</div>', unsafe_allow_html=True)
-# Khối 3: BIỂU ĐỒ MỚI THÊM VÀO Ở PHÍA DƯỚI CÙNG TAB 1
+
+    # Khối 3: Biểu đồ phân phối thu nhập dưới cùng Tab 1
     st.markdown('<div class="card-3d"><div class="section-title">💰 Mức thu nhập trung bình theo Nhóm nghề nghiệp</div>', unsafe_allow_html=True)
     if not filtered_df.empty:
-        # Tính toán giá trị thu nhập trung bình tăng dần theo nghề nghiệp để biểu đồ đẹp hơn
         income_ordered = filtered_df.groupby('Occupation')['Income_Cleaned'].mean().sort_values(ascending=False).index
         
         fig2, ax2 = plt.subplots(figsize=(12, 5))
@@ -236,17 +263,20 @@ with tab1:
             y='Occupation',
             x='Income_Cleaned',
             order=income_ordered,
-            palette='GnBu_r',  # Bảng màu xanh Mint to Blue sang trọng, đồng bộ với tông Blues của Heatmap
+            palette='GnBu_r', 
             errorbar=None,
             ax=ax2,
             width=0.6
         )
         
+        # Thêm nhãn số tiền ($) trực tiếp lên các thanh bar
+        for container in ax2.containers:
+            ax2.bar_label(container, fmt='$%:,.0f', padding=5, fontweight='bold', color='#1E293B', size=9)
+            
         ax2.set_title("Xếp hạng Thu nhập trung bình năm giữa các Vị trí công việc (USD)", fontsize=11, fontweight='bold', color='#1E293B', pad=12)
         ax2.set_xlabel("Thu nhập trung bình (USD)")
         ax2.set_ylabel("")
         
-        # Định dạng lại các mốc trục X hiển thị dạng nghìn đô cho thoáng (ví dụ: 50k, 100k)
         ax2.xaxis.set_major_formatter(plt.FuncFormatter(lambda x, p: f"${x*1e-3:,.0f}k"))
         
         plt.tight_layout()
@@ -255,6 +285,7 @@ with tab1:
     else:
         st.warning("Không có dữ liệu phù hợp với bộ lọc để tính toán thu nhập.")
     st.markdown('</div>', unsafe_allow_html=True)
+
 # ==========================================
 # TAB 2: TÁC ĐỘNG CỦA AI ĐẾN CÔNG VIỆC (DỌC)
 # ==========================================
