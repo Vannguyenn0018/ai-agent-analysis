@@ -91,8 +91,7 @@ df = load_data()
 # ----------------------------------------
 # 3. SIDEBAR - BỘ LỌC DỮ LIỆU (INTERACTIVE FILTER PANEL)
 # ----------------------------------------
-st.sidebar.header("🎛️ Bộ lọc dữ liệu")
-st.sidebar.markdown("Tùy chỉnh phạm vi phân tích theo thời gian thực.")
+st.sidebar.header("Bộ lọc dữ liệu")
 
 # Bộ lọc 1: Thế hệ (Generation)
 generations = df['Generation'].unique().tolist()
@@ -146,7 +145,7 @@ st.markdown("---")
 
 # Khởi tạo Tabs
 tab1, tab2, tab3, tab4 = st.tabs([
-    "📂 1. Tổng quan & Mô tả dữ liệu", 
+    "📂 1. Tổng quan dữ liệu", 
     "📈 2. Tác động của AI đến công việc", 
     "🧠 3. Tâm lý & Thái độ", 
     "💡 4. Khuyến nghị AI Agent"
@@ -174,9 +173,8 @@ with tab1:
     
     st.subheader("1.3 Đặc trưng cấu trúc và Toàn cảnh nhân khẩu học")
     
-    c1, c2 = st.columns(2)
+    c1 = st.columns(1)
     with c1:
-        st.markdown("<div class='card-3d'>", unsafe_allow_html=True)
         if not filtered_df.empty:
             # Ý tưởng 1: Tính toán ma trận chéo tỷ lệ phần trăm thế hệ trong từng nhóm nghề
             crosstab_matrix = pd.crosstab(
