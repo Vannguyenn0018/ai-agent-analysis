@@ -185,7 +185,7 @@ tab1, tab2, tab3, tab4 = st.tabs([
 # TAB 1: TỔNG QUAN VÀ MÔ TẢ DỮ LIỆU (DỌC)
 # ==========================================
 with tab1:
-    st.markdown('<div class="section-title">📌 Chỉ số tổng quan toàn ngành</div>', unsafe_allow_html=True)
+    st.markdown('<div class="section-title">1.1 Chỉ số tổng quan toàn ngành</div>', unsafe_allow_html=True)
     
     # Giữ phần metric nằm ngang vì đây là các thẻ ngắn, tiết kiệm không gian đầu trang
     col1, col2, col3, col4 = st.columns(4)
@@ -201,12 +201,12 @@ with tab1:
     st.markdown("<br>", unsafe_allow_html=True)
     
     # Khối 1: Bảng dữ liệu Full-width
-    st.markdown('<div class="card-3d"><div class="section-title">📄 Bản xem trước dữ liệu mẫu (Head)</div>', unsafe_allow_html=True)
+    st.markdown('<div class="card-3d"><div class="section-title">1,2 Data Preview (Head)</div>', unsafe_allow_html=True)
     st.dataframe(filtered_df.head(6), use_container_width=True)
     st.markdown('</div>', unsafe_allow_html=True)
         
     # Khối 2: Biểu đồ nhiệt Full-width (Tăng kích thước figsize rộng hơn để không bị lỗi đè chữ)
-    st.markdown('<div class="card-3d"><div class="section-title">📊 Phân bổ nhân khẩu học theo Thế hệ</div>', unsafe_allow_html=True)
+    st.markdown('<div class="card-3d"><div class="section-title">1.3 Đặc trưng cấu trúc và Toàn cảnh nhân khẩu học</div>', unsafe_allow_html=True)
     if not filtered_df.empty:
         crosstab_matrix = pd.crosstab(filtered_df['Occupation'], filtered_df['Generation'], normalize='index') * 100
         desired_order = [g for g in ['Gen Z', 'Millennials', 'Gen X+'] if g in crosstab_matrix.columns]
@@ -224,6 +224,27 @@ with tab1:
     else:
         st.warning("Không có dữ liệu phù hợp với bộ lọc.")
     st.markdown('</div>', unsafe_allow_html=True)
+ # Vẽ bản đồ nhiệt sang trọng với bảng màu Blues
+            sns.heatmap(
+                crosstab_matrix, 
+                annot=True, 
+                fmt=".1f", 
+                cmap="Blues", 
+                linewidths=0.5,
+                cbar_kws={'label': 'Tỷ lệ cấu trúc (%)'}, 
+                annot_kws={"weight": "bold", "size": 10},
+                ax=ax1
+            )
+            ax1.set_title("Ma trận phân bổ Thế hệ trong từng Phân khúc Nghề nghiệp", fontsize=11, fontweight='bold', color='#1E293B', pad=12)
+            ax1.set_ylabel("")
+            ax1.set_xlabel("Thế hệ")
+            plt.xticks(rotation=0)
+            plt.tight_layout()
+            st.pyplot(fig1)
+            st.caption("💡 **Insight mô tả:** Giúp nhận diện ngay lập tức nhóm ngành nào đang có xu hướng 'trẻ hóa' (tỷ lệ Gen Z cao) hoặc ngành nào giữ chân được nhân sự bền vững (Millennials & Gen X+ chiếm ưu thế).")
+        else:
+            st.warning("Không có dữ liệu phù hợp với bộ lọc.")
+        st.markdown("</div>", unsafe_allow_html=True)
 
 # ==========================================
 # TAB 2: TÁC ĐỘNG CỦA AI ĐẾN CÔNG VIỆC (DỌC)
