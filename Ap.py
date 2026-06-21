@@ -13,7 +13,7 @@ st.set_page_config(
     layout="wide"
 )
 
-# Cấu hình phong cách đồ thị Seaborn đồng bộ với giao diện UI (Tông màu sang trọng)
+# Cấu hình phong cách đồ thị Seaborn (Tối ưu kích thước lớn cho layout dọc)
 sns.set_theme(style="whitegrid")
 plt.rcParams.update({
     'figure.facecolor': '#ffffff',
@@ -22,7 +22,8 @@ plt.rcParams.update({
     'axes.labelcolor': '#1e293b',
     'xtick.color': '#475569',
     'ytick.color': '#475569',
-    'font.family': 'sans-serif'
+    'font.family': 'sans-serif',
+    'figure.titlesize': 14
 })
 
 # Hệ thống CSS nâng cấp: Hiệu ứng nổi 3D mượt mà & Bảng màu Modern Tech
@@ -66,11 +67,11 @@ st.markdown("""
         transition: all 0.3s ease;
     }
     .card-3d:hover {
-        transform: translateY(-4px);
-        box-shadow: 0 20px 40px rgba(15, 23, 42, 0.08);
+        transform: translateY(-2px);
+        box-shadow: 0 15px 35px rgba(15, 23, 42, 0.06);
     }
 
-    /* 3. Tinh chỉnh Sidebar chuyên nghiệp */
+    /* 3. Tinh chỉnh Sidebar */
     section[data-testid="stSidebar"] {
         background-color: #f8fafc;
         border-right: 1px solid #e2e8f0;
@@ -84,7 +85,7 @@ st.markdown("""
         border-bottom: 2px solid #3b82f6;
     }
 
-    /* 4. Định dạng Tabs Độc đáo, Hiện đại */
+    /* 4. Định dạng Tabs Hiện đại */
     button[data-baseweb="tab"] {
         font-size: 15px !important;
         font-weight: 600 !important;
@@ -122,7 +123,7 @@ def load_data():
         df = df.dropna(subset=['Generation', 'Occupation', 'Income_Cleaned', 'LLM_Familiarity_Cleaned'])
         return df
     except Exception as e:
-        # Tạo dữ liệu giả lập chất lượng cao nếu không tìm thấy file để ứng dụng không bị crash
+        # Dữ liệu giả lập phòng hờ lỗi đường dẫn
         np.random.seed(42)
         n = 200
         return pd.DataFrame({
@@ -140,7 +141,7 @@ def load_data():
 df = load_data()
 
 # ----------------------------------------
-# 3. SIDEBAR - BỘ LỌC DỮ LIỆU (UPGRADED UI)
+# 3. SIDEBAR - BỘ LỌC DỮ LIỆU
 # ----------------------------------------
 with st.sidebar:
     st.markdown('<div class="sidebar-title">⚙️ Bộ lọc dữ liệu</div>', unsafe_allow_html=True)
@@ -168,7 +169,7 @@ filtered_df = df[
 ]
 
 # ----------------------------------------
-# 4. GIAO DIỆN CHÍNH
+# 4. GIAO DIỆN CHÍNH (LAYOUT DỌC TOÀN DIỆN)
 # ----------------------------------------
 st.markdown('<h1 style="color: #0f172a; font-size: 28px; font-weight: 800; margin-bottom: 5px;">📊 Phân tích hiện trạng & Khuyến nghị AI Agent</h1>', unsafe_allow_html=True)
 st.markdown('<p style="color: #64748b; font-size: 15px; margin-bottom: 25px;">Hệ thống dashboard hỗ trợ ra quyết định và tối ưu hóa luồng công việc ngành Khoa học máy tính</p>', unsafe_allow_html=True)
@@ -181,11 +182,12 @@ tab1, tab2, tab3, tab4 = st.tabs([
 ])
 
 # ==========================================
-# TAB 1: TỔNG QUAN VÀ MÔ TẢ DỮ LIỆU
+# TAB 1: TỔNG QUAN VÀ MÔ TẢ DỮ LIỆU (DỌC)
 # ==========================================
 with tab1:
     st.markdown('<div class="section-title">📌 Chỉ số tổng quan toàn ngành</div>', unsafe_allow_html=True)
     
+    # Giữ phần metric nằm ngang vì đây là các thẻ ngắn, tiết kiệm không gian đầu trang
     col1, col2, col3, col4 = st.columns(4)
     col1.metric("Mẫu khảo sát (sau lọc)", f"{len(filtered_df):,}")
     col2.metric("Số lượng nhóm nghề", filtered_df['Occupation'].nunique())
@@ -198,90 +200,85 @@ with tab1:
     
     st.markdown("<br>", unsafe_allow_html=True)
     
-    # Chia layout thành 2 cột: Bên trái xem trước dữ liệu, Bên phải vẽ biểu đồ nhiệt cấu trúc nhân khẩu học
-    grid_col1, grid_col2 = st.columns([1.1, 0.9])
-    
-    with grid_col1:
-        st.markdown('<div class="card-3d"><div class="section-title">📄 Bản xem trước dữ liệu mẫu (Head)</div>', unsafe_allow_html=True)
-        st.dataframe(filtered_df.head(6), use_container_width=True, height=290)
-        st.markdown('</div>', unsafe_allow_html=True)
+    # Khối 1: Bảng dữ liệu Full-width
+    st.markdown('<div class="card-3d"><div class="section-title">📄 Bản xem trước dữ liệu mẫu (Head)</div>', unsafe_allow_html=True)
+    st.dataframe(filtered_df.head(6), use_container_width=True)
+    st.markdown('</div>', unsafe_allow_html=True)
         
-    with grid_col2:
-        st.markdown('<div class="card-3d"><div class="section-title">📊 Phân bổ nhân khẩu học theo Thế hệ</div>', unsafe_allow_html=True)
-        if not filtered_df.empty:
-            crosstab_matrix = pd.crosstab(filtered_df['Occupation'], filtered_df['Generation'], normalize='index') * 100
-            desired_order = [g for g in ['Gen Z', 'Millennials', 'Gen X+'] if g in crosstab_matrix.columns]
-            crosstab_matrix = crosstab_matrix[desired_order]
-            
-            fig1, ax1 = plt.subplots(figsize=(6, 3.6))
-            sns.heatmap(crosstab_matrix, annot=True, fmt=".1f", cmap="Blues", linewidths=1,
-                        cbar_kws={'label': '% Tỷ lệ'}, annot_kws={"weight": "bold", "size": 9}, ax=ax1)
-            ax1.set_ylabel("")
-            ax1.set_xlabel("")
-            plt.xticks(rotation=0)
-            plt.tight_layout()
-            st.pyplot(fig1)
-        else:
-            st.warning("Không có dữ liệu phù hợp với bộ lọc.")
-        st.markdown('</div>', unsafe_allow_html=True)
+    # Khối 2: Biểu đồ nhiệt Full-width (Tăng kích thước figsize rộng hơn để không bị lỗi đè chữ)
+    st.markdown('<div class="card-3d"><div class="section-title">📊 Phân bổ nhân khẩu học theo Thế hệ</div>', unsafe_allow_html=True)
+    if not filtered_df.empty:
+        crosstab_matrix = pd.crosstab(filtered_df['Occupation'], filtered_df['Generation'], normalize='index') * 100
+        desired_order = [g for g in ['Gen Z', 'Millennials', 'Gen X+'] if g in crosstab_matrix.columns]
+        crosstab_matrix = crosstab_matrix[desired_order]
+        
+        # Tăng kích thước rộng theo chiều ngang (12, 5) để hiển thị trọn vẹn tên các Occupation
+        fig1, ax1 = plt.subplots(figsize=(12, 5))
+        sns.heatmap(crosstab_matrix, annot=True, fmt=".1f", cmap="Blues", linewidths=1,
+                    cbar_kws={'label': '% Tỷ lệ cấu trúc'}, annot_kws={"weight": "bold", "size": 10}, ax=ax1)
+        ax1.set_ylabel("")
+        ax1.set_xlabel("Thế hệ")
+        plt.xticks(rotation=0)
+        plt.tight_layout()
+        st.pyplot(fig1)
+    else:
+        st.warning("Không có dữ liệu phù hợp với bộ lọc.")
+    st.markdown('</div>', unsafe_allow_html=True)
 
 # ==========================================
-# TAB 2: TÁC ĐỘNG CỦA AI ĐẾN CÔNG VIỆC
+# TAB 2: TÁC ĐỘNG CỦA AI ĐẾN CÔNG VIỆC (DỌC)
 # ==========================================
 with tab2:
-    st.markdown('<div class="section-title">🎯 Đánh giá nhu cầu tự động hóa và Kỹ năng cốt lõi</div>', unsafe_allow_html=True)
     if not filtered_df.empty:
-        c1, c2 = st.columns(2)
-        with c1:
-            st.markdown('<div class="card-3d"><div class="section-title">🚀 Nhu cầu tự động hóa theo Thế hệ</div>', unsafe_allow_html=True)
-            fig3, ax3 = plt.subplots(figsize=(6, 3.8))
-            sns.barplot(data=filtered_df, x='Generation', y='Automation Desire Rating', palette='Blues_r', errorbar=None, ax=ax3, width=0.5)
-            ax3.set_xlabel("")
-            ax3.set_ylabel("Mức độ mong muốn (1-5)")
-            ax3.set_ylim(0, 5)
-            st.pyplot(fig3)
-            st.caption("💡 *Insight:* Thể hiện sự cởi mở và mong muốn giao bớt tác vụ lặp lại cho AI xử lý theo từng độ tuổi.")
-            st.markdown('</div>', unsafe_allow_html=True)
-            
-        with c2:
-            st.markdown('<div class="card-3d"><div class="section-title">🛠️ Tầm quan trọng của Kỹ năng theo Nhóm nghề</div>', unsafe_allow_html=True)
-            fig4, ax4 = plt.subplots(figsize=(6, 3.8))
-            sns.boxplot(data=filtered_df, y='Occupation', x='Core Skill Rating', palette='pastel', linewidth=1.2, ax=ax4)
-            ax4.set_xlabel("Đánh giá độ khó / Quan trọng (1-5)")
-            ax4.set_ylabel("")
-            st.pyplot(fig4)
-            st.caption("💡 *Insight:* Các nhóm ngành có phổ điểm hộp (Box) dịch về phía bên phải đánh giá kỹ năng của họ cực kỳ khó thay thế.")
-            st.markdown('</div>', unsafe_allow_html=True)
+        # Khối 1
+        st.markdown('<div class="card-3d"><div class="section-title">🚀 Nhu cầu tự động hóa theo Thế hệ</div>', unsafe_allow_html=True)
+        fig3, ax3 = plt.subplots(figsize=(12, 4))
+        sns.barplot(data=filtered_df, x='Generation', y='Automation Desire Rating', palette='Blues_r', errorbar=None, ax=ax3, width=0.3)
+        ax3.set_xlabel("")
+        ax3.set_ylabel("Mức độ mong muốn (1-5)")
+        ax3.set_ylim(0, 5)
+        st.pyplot(fig3)
+        st.caption("💡 *Insight:* Thể hiện sự cởi mở và mong muốn giao bớt tác vụ lặp lại cho AI xử lý theo từng độ tuổi.")
+        st.markdown('</div>', unsafe_allow_html=True)
+        
+        # Khối 2
+        st.markdown('<div class="card-3d"><div class="section-title">🛠️ Tầm quan trọng của Kỹ năng theo Nhóm nghề</div>', unsafe_allow_html=True)
+        fig4, ax4 = plt.subplots(figsize=(12, 5))
+        sns.boxplot(data=filtered_df, y='Occupation', x='Core Skill Rating', palette='pastel', linewidth=1.2, ax=ax4)
+        ax4.set_xlabel("Đánh giá độ khó / Quan trọng (1-5)")
+        ax4.set_ylabel("")
+        st.pyplot(fig4)
+        st.caption("💡 *Insight:* Các nhóm ngành có phổ điểm hộp (Box) dịch về phía bên phải đánh giá kỹ năng của họ cực kỳ khó thay thế.")
+        st.markdown('</div>', unsafe_allow_html=True)
     else:
         st.warning("Không có dữ liệu để hiển thị biểu đồ.")
 
 # ==========================================
-# TAB 3: TÂM LÝ & THÁI ĐỘ
+# TAB 3: TÂM LÝ & THÁI ĐỘ (DỌC)
 # ==========================================
 with tab3:
-    st.markdown('<div class="section-title">🧠 Sự tương quan giữa mức độ tiếp cận AI và Tâm lý nghề nghiệp</div>', unsafe_allow_html=True)
     if not filtered_df.empty:
-        c1, c2 = st.columns(2)
-        with c1:
-            st.markdown('<div class="card-3d"><div class="section-title">🛡️ Am hiểu AI vs. An toàn công việc (Job Security)</div>', unsafe_allow_html=True)
-            fig5, ax5 = plt.subplots(figsize=(6, 3.8))
-            sns.pointplot(data=filtered_df, x='LLM_Familiarity_Cleaned', y='Job Security Rating', hue='Generation', palette='Set2', dodge=0.2, markers=["o", "s", "D"], ax=ax5)
-            ax5.set_xlabel("Mức độ am hiểu AI")
-            ax5.set_ylabel("Job Security Rating (1-5)")
-            st.pyplot(fig5)
-            st.markdown('</div>', unsafe_allow_html=True)
-            
-        with c2:
-            st.markdown('<div class="card-3d"><div class="section-title">⚓ Quyền tự chủ con người (Human Agency)</div>', unsafe_allow_html=True)
-            fig6, ax6 = plt.subplots(figsize=(6, 3.8))
-            sns.barplot(data=filtered_df, x='LLM_Familiarity_Dummy', y='Human Agency Scale Rating', palette='ch:s=-.2,r=.6', errorbar=None, ax=ax6, width=0.4)
-            ax6.set_xticklabels(["Cơ bản", "Thường xuyên"])
-            ax6.set_xlabel("Tần suất sử dụng AI")
-            ax6.set_ylabel("Mức độ mong muốn kiểm soát (1-5)")
-            ax6.set_ylim(0, 5)
-            st.pyplot(fig6)
-            st.markdown('</div>', unsafe_allow_html=True)
-            
+        # Khối 1
+        st.markdown('<div class="card-3d"><div class="section-title">🛡️ Am hiểu AI vs. An toàn công việc (Job Security)</div>', unsafe_allow_html=True)
+        fig5, ax5 = plt.subplots(figsize=(12, 4.5))
+        sns.pointplot(data=filtered_df, x='LLM_Familiarity_Cleaned', y='Job Security Rating', hue='Generation', palette='Set2', dodge=0.2, markers=["o", "s", "D"], ax=ax5)
+        ax5.set_xlabel("Mức độ am hiểu AI")
+        ax5.set_ylabel("Job Security Rating (1-5)")
+        st.pyplot(fig5)
+        st.markdown('</div>', unsafe_allow_html=True)
+        
+        # Khối 2
+        st.markdown('<div class="card-3d"><div class="section-title">⚓ Quyền tự chủ con người (Human Agency)</div>', unsafe_allow_html=True)
+        fig6, ax6 = plt.subplots(figsize=(12, 4))
+        sns.barplot(data=filtered_df, x='LLM_Familiarity_Dummy', y='Human Agency Scale Rating', palette='ch:s=-.2,r=.6', errorbar=None, ax=ax6, width=0.2)
+        ax6.set_xticklabels(["Cơ bản", "Thường xuyên"])
+        ax6.set_xlabel("Tần suất sử dụng AI")
+        ax6.set_ylabel("Mức độ mong muốn kiểm soát (1-5)")
+        ax6.set_ylim(0, 5)
+        st.pyplot(fig6)
+        st.markdown('</div>', unsafe_allow_html=True)
+        
+        # Khối tổng hợp kết luận
         st.markdown("""
         <div class="card-3d" style="background-color: #f8fafc;">
             🔍 <b>Tổng hợp phân tích tâm lý kỹ sư:</b> Dữ liệu phản ánh một xu hướng rõ nét: những nhân sự có mức độ hiểu biết sâu về LLM thường có cảm giác an toàn về nghề nghiệp (Job Security) cao hơn hẳn. Tuy nhiên, mong muốn giữ quyền tự quyết (Human Agency) vẫn luôn tiệm cận mức tối đa (4.5+), đặt ra bài toán lớn cho thiết kế AI Agent.
@@ -291,55 +288,45 @@ with tab3:
         st.warning("Không có dữ liệu để hiển thị.")
 
 # ==========================================
-# TAB 4: ĐỀ XUẤT VÀ KHUYẾN NGHỊ
+# TAB 4: ĐỀ XUẤT VÀ KHUYẾN NGHỊ (DỌC)
 # ==========================================
 with tab4:
     st.markdown('<div class="section-title">💡 Chiến lược phát triển & Thiết kế hệ thống AI Agent</div>', unsafe_allow_html=True)
     
-    rec_c1, rec_c2 = st.columns(2)
+    st.markdown("""
+    <div class="card-3d">
+        <h4 style="color: #2563eb; margin-top:0;">⚡ 1. Giải quyết tác vụ Điểm Đau (Pain-Points)</h4>
+        <p style="font-size: 15px; line-height: 1.6; color: #334155;">
+            Tập trung phát triển AI Agent tự động giải quyết các tác vụ có tần suất cao, tính lặp lại lớn gây quá tải nhận thức cho kỹ sư:
+            <br>• Tự động đọc, tóm tắt và phân loại tài liệu kỹ thuật API.
+            <br>• Triển khai các Agent chẩn đoán nhanh lỗi dựa trên log hệ thống, giảm tải cho nhóm <b>Computer User Support Specialists</b>.
+            <br>• Tự động sinh testcase và báo cáo kiểm thử tự động cho nhóm <b>QA Analysts</b>.
+        </p>
+    </div>
     
-    with rec_c1:
-        st.markdown("""
-        <div class="card-3d" style="height: 100%;">
-            <h4 style="color: #2563eb; margin-top:0;">⚡ 1. Giải quyết tác vụ Điểm Đau (Pain-Points)</h4>
-            <p style="font-size: 14.5px; line-height: 1.6; color: #334155;">
-                Tập trung phát triển AI Agent tự động giải quyết các tác vụ có tần suất cao, tính lặp lại lớn gây quá tải nhận thức cho kỹ sư:
-                <br>• Tự động đọc, tóm tắt và phân loại tài liệu kỹ thuật API.
-                <br>• Triển khai các Agent chẩn đoán nhanh lỗi dựa trên log hệ thống, giảm tải cho nhóm <b>Computer User Support Specialists</b>.
-                <br>• Tự động sinh testcase và báo cáo kiểm thử tự động cho nhóm <b>QA Analysts</b>.
-            </p>
-        </div>
-        """, unsafe_allow_html=True)
-        
-        st.markdown("""
-        <div class="card-3d" style="height: 100%;">
-            <h4 style="color: #059669; margin-top:0;">🛡️ 2. Nguyên tắc thiết kế hợp tác (HITL Copilot)</h4>
-            <p style="font-size: 14.5px; line-height: 1.6; color: #334155;">
-                Dựa trên chỉ số <b>Human Agency</b> rất cao từ dữ liệu, hệ thống không được thiết kế dạng thay thế hoàn toàn (Full-Auto Action). 
-                <br>• <b>Bắt buộc tích hợp Human-in-the-loop (HITL):</b> AI đóng vai trò khuyến nghị, người dùng luôn là người duyệt và bấm nút quyết định cuối cùng.
-                <br>• Tăng tính minh bạch trong thuật toán (Explainable AI) để tăng mức tin tưởng của các kỹ sư lão làng.
-            </p>
-        </div>
-        """, unsafe_allow_html=True)
+    <div class="card-3d">
+        <h4 style="color: #059669; margin-top:0;">🛡️ 2. Nguyên tắc thiết kế hợp tác (HITL Copilot)</h4>
+        <p style="font-size: 15px; line-height: 1.6; color: #334155;">
+            Dựa trên chỉ số <b>Human Agency</b> rất cao từ dữ liệu, hệ thống không được thiết kế dạng thay thế hoàn toàn (Full-Auto Action). 
+            <br>• <b>Bắt buộc tích hợp Human-in-the-loop (HITL):</b> AI đóng vai trò khuyến nghị, người dùng luôn là người duyệt và bấm nút quyết định cuối cùng.
+            <br>• Tăng tính minh bạch trong thuật toán (Explainable AI) để tăng mức tin tưởng của các kỹ sư lão làng.
+        </p>
+    </div>
 
-    with rec_c2:
-        st.markdown("""
-        <div class="card-3d" style="height: 100%;">
-            <h4 style="color: #7c3aed; margin-top:0;">🤖 3. Bản đồ Agent chuyên biệt (Domain-Specific)</h4>
-            <p style="font-size: 14.5px; line-height: 1.6; color: #334155;">
-                • <b>Troubleshooting Agent:</b> Phân tích nhật ký lỗi ứng dụng (Logs) đưa ra gợi ý giải pháp tức thì.
-                <br>• <b>Documentation Agent:</b> Quản lý mã nguồn, tự động tạo/cập nhật tài liệu Git Wiki khi Codebase thay đổi.
-                <br>• <b>Knowledge Monitor Agent:</b> Quét và tóm tắt các Frameworks, thư viện mới xuất hiện trên thị trường để cập nhật kiến thức cho kỹ sư.
-            </p>
-        </div>
-        """, unsafe_allow_html=True)
-        
-        st.markdown("""
-        <div class="card-3d" style="height: 100%;">
-            <h4 style="color: #ea580c; margin-top:0;">👥 4. Chiến lược triển khai theo Nhân khẩu học</h4>
-            <p style="font-size: 14.5px; line-height: 1.6; color: #334155;">
-                • <b>Nhóm Trẻ (Gen Z & Millennials):</b> Triển khai trực tiếp các Agent can thiệp sâu vào lõi công việc như AI Coding Agent, Data Pipelines Automation Agent.
-                <br>• <b>Nhóm Kỳ cựu (Gen X+):</b> Tiếp cận qua giao diện trực quan, bắt đầu bằng các Agent quản lý tác vụ phi kỹ thuật (như tóm tắt họp, quản lý dự án Jira, quản lý tri thức) trước khi đưa vào luồng nghiệp vụ sâu.
-            </p>
-        </div>
-        """, unsafe_allow_html=True)
+    <div class="card-3d">
+        <h4 style="color: #7c3aed; margin-top:0;">🤖 3. Bản đồ Agent chuyên biệt (Domain-Specific)</h4>
+        <p style="font-size: 15px; line-height: 1.6; color: #334155;">
+            • <b>Troubleshooting Agent:</b> Phân tích nhật ký lỗi ứng dụng (Logs) đưa ra gợi ý giải pháp tức thì.
+            <br>• <b>Documentation Agent:</b> Quản lý mã nguồn, tự động tạo/cập nhật tài liệu Git Wiki khi Codebase thay đổi.
+            <br>• <b>Knowledge Monitor Agent:</b> Quét và tóm tắt các Frameworks, thư viện mới xuất hiện trên thị trường để cập nhật kiến thức cho kỹ sư.
+        </p>
+    </div>
+    
+    <div class="card-3d">
+        <h4 style="color: #ea580c; margin-top:0;">👥 4. Chiến lược triển khai theo Nhân khẩu học</h4>
+        <p style="font-size: 15px; line-height: 1.6; color: #334155;">
+            • <b>Nhóm Trẻ (Gen Z & Millennials):</b> Triển khai trực tiếp các Agent can thiệp sâu vào lõi công việc như AI Coding Agent, Data Pipelines Automation Agent.
+            <br>• <b>Nhóm Kỳ cựu (Gen X+):</b> Tiếp cận qua giao diện trực quan, bắt đầu bằng các Agent quản lý tác vụ phi kỹ thuật (như tóm tắt họp, quản lý dự án Jira, quản lý tri thức) trước khi đưa vào luồng nghiệp vụ sâu.
+        </p>
+    </div>
+    """, unsafe_allow_html=True)
