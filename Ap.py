@@ -212,7 +212,7 @@ tab1, tab2, tab3, tab4 = st.tabs([
 # TAB 1: TỔNG QUAN VÀ MÔ TẢ DỮ LIỆU (DỌC)
 # ==========================================
 with tab1:
-    st.markdown('<div class="section-title">1.1 Chỉ số tổng quan toàn ngành</div>', unsafe_allow_html=True)
+    st.markdown('<div class="section-title">📊 1.1 Chỉ số tổng quan toàn ngành</div>', unsafe_allow_html=True)
     
     col1, col2, col3, col4 = st.columns(4)
     col1.metric("Mẫu khảo sát (sau lọc)", f"{len(filtered_df):,}")
@@ -226,13 +226,12 @@ with tab1:
     
     st.markdown("<br>", unsafe_allow_html=True)
     
-    # Khối 1: Bảng dữ liệu Full-width
-    st.markdown('<div class="card-3d"><div class="section-title">1.2 Data Preview (Head)</div>', unsafe_allow_html=True)
-    st.dataframe(filtered_df.head(6), use_container_width=True)
-    st.markdown('</div>', unsafe_allow_html=True)
+    # Khối 1: Bảng dữ liệu Full-width (Gập lại cho gọn gàng)
+    with st.expander("🔍 Xem trước dữ liệu thô (Data Preview)", expanded=False):
+        st.dataframe(filtered_df.head(10), use_container_width=True)
         
-    # Khối 2: Biểu đồ nhiệt Full-width (Kích thước lớn rộng rãi, không đè chữ)
-    st.markdown('<div class="card-3d"><div class="section-title">1.3 Đặc trưng cấu trúc và Toàn cảnh nhân khẩu học</div>', unsafe_allow_html=True)
+    # Khối 2: Biểu đồ nhiệt Full-width
+    st.markdown('<div class="card-3d"><div class="section-title">🧬 1.2 Đặc trưng cấu trúc và Toàn cảnh nhân khẩu học</div>', unsafe_allow_html=True)
     if not filtered_df.empty:
         crosstab_matrix = pd.crosstab(filtered_df['Occupation'], filtered_df['Generation'], normalize='index') * 100
         desired_order = [g for g in ['Gen Z', 'Millennials', 'Gen X+'] if g in crosstab_matrix.columns]
@@ -241,7 +240,7 @@ with tab1:
         fig1, ax1 = plt.subplots(figsize=(12, 5))
         sns.heatmap(crosstab_matrix, annot=True, fmt=".1f", cmap="Blues", linewidths=0.5,
                     cbar_kws={'label': 'Tỷ lệ cấu trúc (%)'}, annot_kws={"weight": "bold", "size": 10}, ax=ax1)
-        ax1.set_title("Ma trận phân bổ Thế hệ trong từng Phân khúc Nghề nghiệp", fontsize=11, fontweight='bold', color='#1E293B', pad=12)
+        ax1.set_title("Ma trận phân bổ Thế hệ trong từng Phân khúc Nghề nghiệp", fontsize=12, fontweight='bold', color='#1E293B', pad=12)
         ax1.set_ylabel("")
         ax1.set_xlabel("Thế hệ")
         plt.xticks(rotation=0)
@@ -252,40 +251,84 @@ with tab1:
         st.warning("Không có dữ liệu phù hợp với bộ lọc.")
     st.markdown('</div>', unsafe_allow_html=True)
 
-    # Khối 3: Biểu đồ phân phối thu nhập dưới cùng Tab 1
-    st.markdown('<div class="card-3d"><div class="section-title">💰 Mức thu nhập trung bình theo Nhóm nghề nghiệp</div>', unsafe_allow_html=True)
-    if not filtered_df.empty:
-        income_ordered = filtered_df.groupby('Occupation')['Income_Cleaned'].mean().sort_values(ascending=False).index
-        
-        fig2, ax2 = plt.subplots(figsize=(12, 5))
-        sns.barplot(
-            data=filtered_df,
-            y='Occupation',
-            x='Income_Cleaned',
-            order=income_ordered,
-            palette='GnBu_r', 
-            errorbar=None,
-            ax=ax2,
-            width=0.6
-        )
-        
-        # Thêm nhãn số tiền ($) trực tiếp lên các thanh bar
-        for container in ax2.containers:
-            ax2.bar_label(container, fmt='$%:,.0f', padding=5, fontweight='bold', color='#1E293B', size=9)
+    # Chia cột cho 2 biểu đồ phân tích sâu hơn
+    col_chart1, col_chart2 = st.columns(2)
+    
+    with col_chart1:
+        # Khối 3: Biểu đồ phân phối thu nhập
+        st.markdown('<div class="card-3d"><div class="section-title">💰 1.3 Mức thu nhập theo Nhóm nghề</div>', unsafe_allow_html=True)
+        if not filtered_df.empty:
+            income_ordered = filtered_df.groupby('Occupation')['Income_Cleaned'].mean().sort_values(ascending=False).index
             
-        ax2.set_title("Xếp hạng Thu nhập trung bình năm giữa các Vị trí công việc (USD)", fontsize=11, fontweight='bold', color='#1E293B', pad=12)
-        ax2.set_xlabel("Thu nhập trung bình (USD)")
-        ax2.set_ylabel("")
-        
-        ax2.xaxis.set_major_formatter(plt.FuncFormatter(lambda x, p: f"${x*1e-3:,.0f}k"))
-        
-        plt.tight_layout()
-        st.pyplot(fig2)
-        st.caption("💡 **Insight:** Nhận diện phân khúc nghề nghiệp có giá trị thương mại cao. Khi kết hợp với Biểu đồ 1A, bạn có thể phân tích xem các nhóm ngành thu nhập cao đang được dẫn dắt bởi thế hệ nhân sự nào.")
-    else:
-        st.warning("Không có dữ liệu phù hợp với bộ lọc để tính toán thu nhập.")
-    st.markdown('</div>', unsafe_allow_html=True)
+            fig2, ax2 = plt.subplots(figsize=(8, 6))
+            sns.barplot(
+                data=filtered_df,
+                y='Occupation',
+                x='Income_Cleaned',
+                order=income_ordered,
+                palette='mako', # Dùng tone xanh đậm sang trọng
+                errorbar=None,
+                ax=ax2,
+                width=0.6
+            )
+            
+            # Thêm nhãn số tiền ($) trực tiếp lên các thanh bar
+            for container in ax2.containers:
+                ax2.bar_label(container, fmt='$%:,.0f', padding=5, fontweight='bold', color='#1E293B', size=9)
+                
+            ax2.set_title("Xếp hạng Thu nhập trung bình năm (USD)", fontsize=11, fontweight='bold', color='#1E293B', pad=12)
+            ax2.set_xlabel("Thu nhập (USD)")
+            ax2.set_ylabel("")
+            ax2.xaxis.set_major_formatter(plt.FuncFormatter(lambda x, p: f"${x*1e-3:,.0f}k"))
+            
+            plt.tight_layout()
+            st.pyplot(fig2)
+            st.caption("💡 **Insight:** Nhận diện phân khúc nghề nghiệp có giá trị thương mại cao.")
+        else:
+            st.warning("Không có dữ liệu phù hợp với bộ lọc.")
+        st.markdown('</div>', unsafe_allow_html=True)
 
+    with col_chart2:
+        # Khối 4: Biểu đồ Top Kỹ năng (Bóc tách dữ liệu chuỗi List)
+        st.markdown('<div class="card-3d"><div class="section-title">⚙️ 1.4 Top Kỹ năng lõi (O*NET Skills) cần tự động hóa</div>', unsafe_allow_html=True)
+        if not filtered_df.empty and 'Skill (O*NET Work Activity)' in filtered_df.columns:
+            try:
+                import ast
+                # Hàm chuyển đổi an toàn chuỗi dạng list thành list thật
+                def parse_skills(skill_str):
+                    if pd.isna(skill_str): return []
+                    try:
+                        return ast.literal_eval(skill_str)
+                    except:
+                        return [skill_str.strip("[]'\"")]
+                
+                # Bóc tách và đếm tần suất
+                skills_series = filtered_df['Skill (O*NET Work Activity)'].apply(parse_skills).explode()
+                top_skills = skills_series.value_counts().head(7) # Lấy top 7 để đồ thị không bị rối
+                
+                fig_skill, ax_skill = plt.subplots(figsize=(8, 6))
+                sns.barplot(
+                    x=top_skills.values, 
+                    y=top_skills.index, 
+                    palette='crest', # Tone xanh ngọc thanh lịch
+                    ax=ax_skill,
+                    width=0.6
+                )
+                
+                for container in ax_skill.containers:
+                    ax_skill.bar_label(container, padding=5, fontweight='bold', color='#1E293B', size=9)
+                    
+                ax_skill.set_title("Tần suất xuất hiện của các Kỹ năng trong Dataset", fontsize=11, fontweight='bold', color='#1E293B', pad=12)
+                ax_skill.set_xlabel("Số lượng bản ghi")
+                ax_skill.set_ylabel("")
+                plt.tight_layout()
+                st.pyplot(fig_skill)
+                st.caption("💡 **Insight:** Trực quan hóa các tác vụ lặp lại xuất hiện nhiều nhất. Đây chính là những khu vực cần ưu tiên ứng dụng AI Agent.")
+            except Exception as e:
+                st.info("Cột kỹ năng đang dùng dữ liệu giả lập hoặc không đúng định dạng nên chưa thể bóc tách.")
+        else:
+            st.info("Chưa có dữ liệu Kỹ năng để phân tích (Cần cột 'Skill (O*NET Work Activity)').")
+        st.markdown('</div>', unsafe_allow_html=True)
 # ==========================================
 # TAB 2: TÁC ĐỘNG CỦA AI ĐẾN CÔNG VIỆC (DỌC)
 # ==========================================
