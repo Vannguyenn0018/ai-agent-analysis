@@ -201,7 +201,7 @@ with tab1:
     st.markdown("<br>", unsafe_allow_html=True)
     
     # Khối 1: Bảng dữ liệu Full-width
-    st.markdown('<div class="card-3d"><div class="section-title">1,2 Data Preview (Head)</div>', unsafe_allow_html=True)
+    st.markdown('<div class="card-3d"><div class="section-title">1.2 Data Preview (Head)</div>', unsafe_allow_html=True)
     st.dataframe(filtered_df.head(6), use_container_width=True)
     st.markdown('</div>', unsafe_allow_html=True)
         
@@ -225,7 +225,7 @@ with tab1:
         st.warning("Không có dữ liệu phù hợp với bộ lọc.")
     st.markdown('</div>', unsafe_allow_html=True)
 # Khối 3: BIỂU ĐỒ MỚI THÊM VÀO Ở PHÍA DƯỚI CÙNG TAB 1
-    st.markdown('<div class="card-3d"><div class="section-title">💰 Biểu đồ 1B: Mức thu nhập trung bình theo Nhóm nghề nghiệp</div>', unsafe_allow_html=True)
+    st.markdown('<div class="card-3d"><div class="section-title">💰 Mức thu nhập trung bình theo Nhóm nghề nghiệp</div>', unsafe_allow_html=True)
     if not filtered_df.empty:
         # Tính toán giá trị thu nhập trung bình tăng dần theo nghề nghiệp để biểu đồ đẹp hơn
         income_ordered = filtered_df.groupby('Occupation')['Income_Cleaned'].mean().sort_values(ascending=False).index
@@ -242,10 +242,6 @@ with tab1:
             width=0.6
         )
         
-        # Thêm nhãn số tiền ($) trực tiếp lên các thanh bar
-        for container in ax2.containers:
-            ax2.bar_label(container, fmt='$%:,.0f', padding=5, fontweight='bold', color='#1E293B', size=9)
-            
         ax2.set_title("Xếp hạng Thu nhập trung bình năm giữa các Vị trí công việc (USD)", fontsize=11, fontweight='bold', color='#1E293B', pad=12)
         ax2.set_xlabel("Thu nhập trung bình (USD)")
         ax2.set_ylabel("")
@@ -255,7 +251,7 @@ with tab1:
         
         plt.tight_layout()
         st.pyplot(fig2)
-        st.caption("💡 **Insight mô tả:** Nhận diện phân khúc nghề nghiệp có giá trị thương mại cao. Khi kết hợp với Biểu đồ 1A, bạn có thể phân tích xem các nhóm ngành thu nhập cao đang được dẫn dắt bởi thế hệ nhân sự nào.")
+        st.caption("💡 **Insight:** Nhận diện phân khúc nghề nghiệp có giá trị thương mại cao. Khi kết hợp với Biểu đồ 1A, bạn có thể phân tích xem các nhóm ngành thu nhập cao đang được dẫn dắt bởi thế hệ nhân sự nào.")
     else:
         st.warning("Không có dữ liệu phù hợp với bộ lọc để tính toán thu nhập.")
     st.markdown('</div>', unsafe_allow_html=True)
