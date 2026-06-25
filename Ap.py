@@ -376,6 +376,32 @@ with tab2:
 # ==========================================
 with tab3:
     st.subheader("Câu hỏi 2: Nhân sự CS muốn tự động hóa tác vụ nào nhất và vì sao?")
+    # ---------------------------------------------------------
+    # KHỐI METRIC 3D: PHÂN PHỐI ĐIỂM ĐÁNH GIÁ (RATING)
+    # ---------------------------------------------------------
+    st.markdown("#### 1. Tổng quan Phân phối các điểm Đánh giá (Rating)")
+    
+    # Hàng 1: 3 chỉ số đầu tiên
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        st.metric(label="Mức độ yêu thích (Enjoyment)", value="2.86 / 5", delta="Mức trung bình")
+    with col2:
+        st.metric(label="Mong muốn TĐH (Desire)", value="3.04 / 5", delta="Xu hướng cao")
+    with col3:
+        st.metric(label="Năng lực AI (Capacity)", value="3.29 / 5", delta="Cao nhất")
+        
+    st.markdown("<br>", unsafe_allow_html=True) # Khoảng cách giữa 2 hàng
+    
+    # Hàng 2: 3 chỉ số tiếp theo
+    col4, col5, col6 = st.columns(3)
+    with col4:
+        st.metric(label="Chuyên môn (Expertise)", value="Expert", delta="566/1270 người")
+    with col5:
+        st.metric(label="Kỹ năng cốt lõi (Core Skill)", value="3.28 / 5", delta="Tương đương AI")
+    with col6:
+        st.metric(label="An toàn công việc (Security)", value="3.21 / 5", delta="Tương đối an toàn")
+        
+    st.markdown("<br><hr><br>", unsafe_allow_html=True)
     
     # Biểu đồ 1: Nằm trên cùng, trải rộng toàn màn hình
     st.markdown("#### Top 5 Tác vụ được mong muốn tự động hóa")
