@@ -473,7 +473,7 @@ with tab4:
     ax_dumb.invert_yaxis()
     st.pyplot(fig_dumb)
     
-    st.warning("⚠️ **Trái ngọt chưa với tới (Gap Lớn):** Các tác vụ xử lý hồ sơ dữ liệu hàng ngày có mức độ mong muốn rất cao (~4.5) nhưng năng lực AI bị đánh giá chưa tới tầm (~3.5). Đây là **ĐIỂM BÙNG PHÁT** để các tổ chức công nghệ R&D công cụ mới.")
+    st.warning("⚠️ **Insight:** Các tác vụ xử lý hồ sơ dữ liệu hàng ngày có mức độ mong muốn rất cao (~4.5) nhưng năng lực AI bị đánh giá chưa tới tầm (~3.5). Khoảng cách lớn giữa mức độ mong muốn và năng lực AI hiện tại tập trung ở các tác vụ giám sát hệ thống, theo dõi sự cố và quản lý vận hành hằng ngày, cho thấy nhân sự CNTT đang kỳ vọng AI hỗ trợ mạnh hơn trong các công việc vận hành phức tạp và liên tục, nhưng công nghệ hiện tại vẫn chưa đáp ứng được kỳ vọng này.")
 
 # ==========================================
 # TAB 5: KHUYẾN NGHỊ (THEO DATA)
