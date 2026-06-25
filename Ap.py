@@ -480,15 +480,187 @@ with tab4:
 # ==========================================
 with tab5:
     st.header("💡 Khuyến nghị cho Ngành Khoa học Máy tính")
+    st.markdown("#### 1. Các kỹ năng 'Human Agency' mà AI chưa thể thay thế")
     
-    st.markdown("""
-    Dựa trên kết quả phân tích số liệu, dưới đây là các chiến lược ứng dụng AI Agent tối ưu:
+    # Lấy dữ liệu các cột Human Agency
+    human_agency_reason_cols = [
+        'Reasons for Human Agency - Physical',
+        'Reasons for Human Agency - Control',
+        'Reasons for Human Agency - Domain Knowledge',
+        'Reasons for Human Agency - Empathy',
+        'Reasons for Human Agency - Quality Oversight',
+        'Reasons for Human Agency - Dynamic',
+        'Reasons for Human Agency - Ethical'
+    ]
+
+    # Tính tổng tần suất các lý do
+    df_human_agency = df_final[['User ID_x', 'Task ID'] + human_agency_reason_cols].drop_duplicates(subset=['User ID_x', 'Task ID'])
+    aggr_human_agency = df_human_agency[human_agency_reason_cols].sum()
+
+    # Chuẩn bị dữ liệu vẽ Radar
+    labels = ['Physical', 'Control', 'Domain Knowledge', 'Empathy', 'Quality Oversight', 'Dynamic', 'Ethical']
+    values = aggr_human_agency.values
+    max_value = values.max() 
+    scaled_values = values / max_value # Chuẩn hóa về thang 0-1 (hoặc 0-100%)
+
+    num_vars = len(labels)
+    angles = np.linspace(0, 2 * np.pi, num_vars, endpoint=False).tolist()
+
+    # Đóng vòng lặp cho biểu đồ Radar
+    scaled_values = np.concatenate((scaled_values, [scaled_values[0]]))
+    angles = np.concatenate((angles, [angles[0]]))
+    labels_english = np.concatenate((labels, [labels[0]]))
+
+    # Vẽ biểu đồ
+    fig_radar, ax_radar = plt.subplots(figsize=(8, 8), subplot_kw=dict(polar=True))
     
-    * **1. Tập trung xử lý 'Điểm đau' lặp đi lặp lại:** Ưu tiên triển khai AI để theo dõi bug, log hệ thống, duy trì hồ sơ truyền dữ liệu. Đây là những tác vụ người lao động khát khao được giải phóng nhất.
-    * **2. Phát triển AI cho Support/QA:** Các công việc như Support User (đọc tài liệu kỹ thuật, chẩn đoán lỗi) đang chiếm số lượng việc làm lớn và tần suất cao. AI Agent như Chatbot RAG có thể giảm ngay lập tức tải công việc này.
-    * **3. Chiến lược LLM phân hóa theo kinh nghiệm:** * Nhân sự Junior (<2 năm): Thúc đẩy sử dụng AI để Coding & truy xuất tài liệu (Copilot).
-        * Nhân sự Senior: Tập trung đào tạo dùng LLM nâng cao (System Design, Data Processing) để tăng tư duy thiết kế thay vì chỉ sinh mã.
-    * **4. Bảo vệ 'Human Agency':** Khả năng *Domain Knowledge* và *Quality Oversight* của con người là bất khả xâm phạm ở thời điểm này. Hệ thống AI nên thiết kế theo dạng "Human-in-the-loop" (AI đề xuất, con người duyệt).
-    * **5. Minh bạch về năng lực công nghệ:** Năng lực AI thực tế đôi khi vượt cả nhu cầu (ví dụ: Budgeting). Cần truyền thông nội bộ tốt hơn để nhân sự an tâm ứng dụng và xóa bỏ thái độ e ngại.
-    """)
-    st.success("Tóm lại: AI trong CS hiện tại không nhằm mục đích thay thế, mà nhắm thẳng vào việc loại bỏ rác tác vụ (nhàm chán, lặp lại) để kỹ sư tập trung vào Domain Knowledge!")
+    # Đổ màu và kẻ viền
+    ax_radar.fill(angles, scaled_values, color='skyblue', alpha=0.25)
+    ax_radar.plot(angles, scaled_values, color='blue', linewidth=2)
+
+    # Chỉnh góc độ và trục
+    ax_radar.set_theta_offset(np.pi / 2)
+    ax_radar.set_theta_direction(-1)
+    ax_radar.set_xticks(angles[:-1])
+    ax_radar.set_xticklabels(labels_english[:-1], fontsize=12)
+
+    # Chỉnh nhãn trục Y (tỷ lệ %)
+    ax_radar.set_rlabel_position(0)
+    r_ticks = [0.2, 0.4, 0.6, 0.8, 1.0]
+    ax_radar.set_yticks(r_ticks)
+    ax_radar.set_yticklabels([f'{int(r*100)}%' for r in r_ticks], color='gray', size=10)
+    ax_radar.tick_params(axis='y', colors='gray')
+
+    ax_radar.set_title('Comparison of "Human Agency" Skills that AI Cannot Yet Replace', size=16, color='black', pad=30, fontweight='bold')
+    
+    # Hiển thị trên Streamlit
+    st.pyplot(fig_radar)
+    
+    # Thẻ Insight cho Radar
+    st.info("💡 **Insight:** Biểu đồ Radar củng cố quan điểm rằng giá trị cốt lõi của con người nằm ở **Domain Knowledge (Kiến thức chuyên môn)**, **Control (Khả năng kiểm soát)** và **Quality Oversight (Giám sát chất lượng)**. Đây là những trụ cột không thể bị AI thay thế hoàn toàn ở thời điểm hiện tại.")
+
+    st.markdown("<br><hr><br>", unsafe_allow_html=True)
+    # ---------------------------------------------------------
+    # PHẦN 2: TEXT KHUYẾN NGHỊ
+    # ---------------------------------------------------------
+
+    # ---------------------------------------------------------
+    # PHẦN 3: CODE MẪU TRIỂN KHAI AI AGENT (HUMAN-IN-THE-LOOP)
+    # ---------------------------------------------------------
+    st.markdown("#### 3. Mô phỏng triển khai AI Agent thực tế (Human-in-the-Loop)")
+    st.info("💻 **Demo:** Đoạn code Python dưới đây minh họa cách xây dựng một Copilot Agent hỗ trợ IT. Agent tự động tra cứu log/tài liệu (giải quyết mong muốn tự động hóa) nhưng luôn yêu cầu Kỹ sư phê duyệt trước khi hành động (bảo vệ Human Agency).")
+    
+    # Hiển thị code bằng st.code để có highlight cú pháp cực đẹp
+    st.code('''import time
+from typing import List, Dict
+
+# ==========================================
+# 1. ĐỊNH NGHĨA CÁC CÔNG CỤ (TOOLS) CHO AGENT
+# (Giải quyết mong muốn tự động hóa: Đọc tài liệu, giám sát lỗi)
+# ==========================================
+
+def search_technical_manuals(query: str) -> str:
+    """
+    Công cụ giả lập: Truy xuất RAG (Retrieval-Augmented Generation) từ kho tài liệu nội bộ.
+    Giải quyết tác vụ: "Read technical manuals..."
+    """
+    print(f"[Agent Tool] Đang tra cứu tài liệu kỹ thuật cho từ khóa: '{query}'...")
+    time.sleep(1)
+    return "Tài liệu hệ thống: Lỗi Error_503 thường do tràn bộ nhớ cache trên server ứng dụng. Cách khắc phục: Xóa cache và khởi động lại service HTTP."
+
+def fetch_system_logs(user_id: str) -> str:
+    """
+    Công cụ giả lập: Kéo log hệ thống của người dùng đang báo lỗi.
+    Giải quyết tác vụ: "Monitor system operation / Conduct computer diagnostics..."
+    """
+    print(f"[Agent Tool] Đang trích xuất log hệ thống cho user {user_id}...")
+    time.sleep(1)
+    return "System Log (10 mins ago): HTTP Service Memory Usage at 99%. Status: Crash Loop."
+
+# ==========================================
+# 2. XÂY DỰNG AGENT VỚI CƠ CHẾ HUMAN-IN-THE-LOOP
+# (Giải quyết Human Agency: Control & Quality Oversight)
+# ==========================================
+
+class ITSupportCopilotAgent:
+    def __init__(self, name="TechSupport_Copilot"):
+        self.name = name
+        # Bộ nhớ ngắn hạn của Agent cho mỗi ticket
+        self.context: List[Dict[str, str]] = []
+
+    def analyze_ticket(self, user_id: str, issue_description: str):
+        """
+        Quy trình xử lý cốt lõi của Agent
+        """
+        print(f"\\n--- BẮT ĐẦU XỬ LÝ TICKET TỪ USER: {user_id} ---")
+        print(f"Vấn đề: {issue_description}\\n")
+
+        # Bước 1: Agent tự động thu thập ngữ cảnh (Giảm thiểu công việc lặp lại)
+        print("🤖 [Agent Đang Suy Nghĩ]: Cần kiểm tra log hệ thống trước...")
+        logs = fetch_system_logs(user_id)
+        self.context.append({"role": "system", "content": f"Logs: {logs}"})
+        
+        # Bước 2: Agent tự động tra cứu giải pháp (Giảm thời gian đọc tài liệu manual)
+        print("🤖 [Agent Đang Suy Nghĩ]: Log báo lỗi bộ nhớ. Cần tìm tài liệu hướng dẫn khắc phục...")
+        manual_info = search_technical_manuals("Memory leak HTTP service crash")
+        self.context.append({"role": "system", "content": f"Manuals: {manual_info}"})
+
+        # Bước 3: Tổng hợp và Đề xuất (Drafting)
+        proposed_solution = self._generate_diagnostic_report()
+        
+        # Bước 4: HUMAN-IN-THE-LOOP (Điểm chạm quyết định)
+        self._request_human_approval(proposed_solution)
+
+    def _generate_diagnostic_report(self) -> str:
+        """Giả lập việc LLM tổng hợp thông tin thành báo cáo chẩn đoán."""
+        print("🤖 [Agent Đang Soạn Thảo]: Đang tổng hợp báo cáo chẩn đoán...\\n")
+        time.sleep(1)
+        report = (
+            "DỰ ĐOÁN NGUYÊN NHÂN: Server bị crash do tràn bộ nhớ cache (99% Usage).\\n"
+            "ĐỀ XUẤT HÀNH ĐỘNG:\\n"
+            "1. Clear cache bằng lệnh: `sudo systemctl clear-cache httpd`\\n"
+            "2. Restart service: `sudo systemctl restart httpd`\\n"
+            "3. Gửi email thông báo cho user.\\n"
+        )
+        return report
+
+    def _request_human_approval(self, proposed_solution: str):
+        """
+        Chuyển quyền kiểm soát lại cho Kỹ sư CS (Con người).
+        Đáp ứng tiêu chí "Domain Knowledge" và "Control" trong Radar Chart.
+        """
+        print("==================================================")
+        print("🚨 YÊU CẦU PHÊ DUYỆT TỪ CON NGƯỜI (HUMAN OVERSIGHT) 🚨")
+        print("==================================================")
+        print(proposed_solution)
+        
+        while True:
+            decision = input("Kỹ sư hỗ trợ, bạn có duyệt phương án này không? (Y: Duyệt và Thực thi / N: Chỉnh sửa / R: Từ chối): ").strip().upper()
+            
+            if decision == 'Y':
+                print("✅ [Human Agency]: Đã duyệt. Agent đang thực thi các lệnh sửa lỗi và đóng ticket.")
+                # Gọi các hàm execute command ở đây
+                break
+            elif decision == 'N':
+                feedback = input("Nhập phản hồi/chỉnh sửa của bạn cho Agent: ")
+                print(f"🔄 [Agent Học Hỏi]: Đang cập nhật giải pháp dựa trên kiến thức chuyên môn (Domain Knowledge) của bạn: '{feedback}'...")
+                # Đưa feedback lại vào prompt của LLM để generate lại
+                break
+            elif decision == 'R':
+                print("❌ [Human Agency]: Đã từ chối đề xuất. Chuyển hoàn toàn quyền xử lý cho Kỹ sư.")
+                break
+            else:
+                print("Lựa chọn không hợp lệ. Vui lòng nhập Y, N, hoặc R.")
+
+# ==========================================
+# 3. CHẠY THỬ NGHIỆM
+# ==========================================
+if __name__ == "__main__":
+    copilot = ITSupportCopilotAgent()
+    
+    # Giả lập một ticket mới đẩy vào hệ thống
+    incoming_user_id = "USER_9982"
+    incoming_issue = "Web portal nội bộ của tôi bị sập, màn hình báo lỗi 503 Service Unavailable."
+    
+    copilot.analyze_ticket(user_id=incoming_user_id, issue_description=incoming_issue)
+    ''', language='python')
