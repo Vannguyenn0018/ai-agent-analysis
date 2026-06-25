@@ -222,7 +222,7 @@ with st.sidebar:
     st.markdown("---")
     st.header("📌 Thông tin bài thi")
     st.markdown("**Môn học:** Trực quan hoá Dữ liệu")
-    st.markdown("**Kỳ thi:** Kiểm tra Giữa kỳ")
+    st.markdown("**MSSV:** 030239230284")
     st.markdown("**Sinh viên thực hiện:** Nguyễn Thái Thanh Vân")
     st.markdown("---")
     st.info("💡 **Ghi chú:** Dashboard phân tích hiện trạng và khuyến nghị ứng dụng AI Agent trong ngành Khoa học Máy tính.")
@@ -372,100 +372,8 @@ with tab2:
 
     st.markdown("<br><hr><br>", unsafe_allow_html=True)
     
-    # ---------------------------------------------------------
-    # PHẦN 2: BIỂU ĐỒ SANKEY
-    # ---------------------------------------------------------
-    st.markdown("#### 2. Dòng chảy hành vi: Kinh nghiệm ➔ Lo ngại AI ➔ Tần suất dùng LLM ➔ Mong muốn Tự động hóa")
-    
-    sankey_data_agg = df_final.groupby('User ID_x').agg(
-        Experience_Numeric=('Experience_numeric', lambda x: x.mode()[0] if not x.mode().empty else 0),
-        AI_Suffering_Numeric=('AI_Suffering_Numeric', lambda x: x.mode()[0] if not x.mode().empty else 0),
-        LLM_Usage_Coding_Score=('LLM Usage by Type - Coding', 'mean'),
-        Automation_Desire_Rating=('Automation Desire Rating', 'mean')
-    ).reset_index()
-
-    def cat_exp(x):
-        if x==1: return 'Dưới 1 năm'
-        elif x==2: return '1-2 năm'
-        elif x==3: return '3-5 năm'
-        elif x==4: return '6-10 năm'
-        elif x==5: return 'Trên 10 năm'
-        return 'Khác'
-    
-    def cat_att(x):
-        if x <= 2: return 'Ít lo ngại AI'
-        elif x == 3: return 'Trung lập'
-        else: return 'Rất lo ngại AI'
-        
-    def cat_llm(x):
-        if x < 0.5: return 'Không bao giờ'
-        elif x < 1.5: return 'Hàng tháng'
-        elif x < 2.5: return 'Hàng tuần'
-        else: return 'Hàng ngày'
-        
-    def cat_desire(x):
-        if x < 3: return 'Mong muốn Thấp'
-        elif x < 4: return 'Mong muốn TB'
-        else: return 'Mong muốn Cao'
-
-    sankey_data_agg['Kinh nghiệm'] = sankey_data_agg['Experience_Numeric'].apply(cat_exp)
-    sankey_data_agg['Thái độ'] = sankey_data_agg['AI_Suffering_Numeric'].apply(cat_att)
-    sankey_data_agg['Sử dụng LLM Code'] = sankey_data_agg['LLM_Usage_Coding_Score'].apply(cat_llm)
-    sankey_data_agg['Mong muốn'] = sankey_data_agg['Automation_Desire_Rating'].apply(cat_desire)
-
-    stages = ['Kinh nghiệm', 'Thái độ', 'Sử dụng LLM Code', 'Mong muốn']
-    all_nodes = list(pd.concat([sankey_data_agg[col] for col in stages]).unique())
-    node_to_id = {node: i for i, node in enumerate(all_nodes)}
-
-    links = []
-    for i in range(len(stages) - 1):
-        flow_counts = sankey_data_agg.groupby([stages[i], stages[i+1]]).size().reset_index(name='count')
-        for _, row in flow_counts.iterrows():
-            links.append({'source': node_to_id[row[stages[i]]], 'target': node_to_id[row[stages[i+1]]], 'value': row['count']})
-    
-    links_df = pd.DataFrame(links)
-    
-    node_colors_palette = [
-        '#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6', 
-        '#ec4899', '#14b8a6', '#f97316', '#64748b', '#0ea5e9'
-    ]
-    node_colors = [node_colors_palette[i % len(node_colors_palette)] for i in range(len(all_nodes))]
-
-    fig_sankey = go.Figure(data=[go.Sankey(
-        arrangement='snap',
-        node=dict(
-            pad=30, 
-            thickness=15, 
-            line=dict(color="white", width=1), 
-            label=all_nodes,
-            color=node_colors
-        ),
-        link=dict(
-            source=links_df['source'], 
-            target=links_df['target'], 
-            value=links_df['value'], 
-            color='rgba(226, 232, 240, 0.6)'
-        )
-    )])
-    
-    fig_sankey.update_layout(
-        height=650, 
-        font=dict(
-            size=12, 
-            color='#374151', 
-            family="Arial, sans-serif"
-        ),
-        margin=dict(t=40, l=20, r=20, b=40),
-        plot_bgcolor='rgba(0,0,0,0)',
-        paper_bgcolor='rgba(0,0,0,0)'
-    )
-    
-    st.plotly_chart(fig_sankey, use_container_width=True)
-    
-    st.info("💡 **Nhận xét về Dòng chảy:** Sinh viên mới/nhân sự ít kinh nghiệm (<2 năm) có tỷ lệ dùng LLM để code hàng ngày cao, bất chấp họ có lo ngại về AI hay không. Việc dùng LLM nhiều dẫn trực tiếp đến mong muốn tự động hóa cao hơn ở cuối phễu.")
-    
 # ==========================================
-# TAB 3: MONG MUỐN TỰ ĐỘNG HÓA (RQ2)
+# TAB 3: MONG MUỐN TỰ ĐỘNG HÓA 
 # ==========================================
 with tab3:
     st.subheader("Câu hỏi 2: Nhân sự CS muốn tự động hóa tác vụ nào nhất và vì sao?")
@@ -485,28 +393,61 @@ with tab3:
     st.markdown("---") # Kẻ một đường ngang phân cách nhẹ nhàng
     st.markdown("<br>", unsafe_allow_html=True)
 
-    # Biểu đồ 2: Nằm ngay bên dưới
-    st.markdown("#### Lý do cốt lõi thúc đẩy tự động hóa")
-    reason_cols = [col for col in df_final.columns if 'Reasons for Automation Desire' in col]
+    st.markdown("#### 2. Biểu đồ nhiệt: Tỷ lệ nhân sự đồng thuận với các lý do tự động hóa theo ngành nghề CS")
+    
+    # Gọi đủ 6 cột lý do từ dữ liệu gốc
+    reason_cols = [
+        'Reasons for Automation Desire - Free Time',
+        'Reasons for Automation Desire - Repetitive',
+        'Reasons for Automation Desire - Human Error',
+        'Reasons for Automation Desire - Stress',
+        'Reasons for Automation Desire - Difficulty',
+        'Reasons for Automation Desire - Scale'
+    ]
+    
+    # Đổi tên cột sang tiếng Việt cho giống ảnh
     reason_labels = {
         'Reasons for Automation Desire - Free Time': 'Thời gian rảnh', 
-        'Reasons for Automation Desire - Repetitive': 'Công việc lặp lại', 
-        'Reasons for Automation Desire - Human Error': 'Lỗi do con người'
+        'Reasons for Automation Desire - Repetitive': 'Lặp lại', 
+        'Reasons for Automation Desire - Human Error': 'Lỗi do con người',
+        'Reasons for Automation Desire - Stress': 'Giảm căng thẳng',
+        'Reasons for Automation Desire - Difficulty': 'Giảm độ khó',
+        'Reasons for Automation Desire - Scale': 'Mở rộng quy mô'
     }
     
-    # Xử lý nhanh heatmap data
-    heatmap_data = df_final.groupby('Occupation (O*NET-SOC Title)_worker_meta')[reason_cols[:3]].apply(lambda x: (x == 1).mean() * 100).rename(columns=reason_labels)
+    # Tính tỷ lệ % đồng thuận (do cột ban đầu là 1/0)
+    heatmap_data = df_final.groupby('Occupation (O*NET-SOC Title)_worker_meta')[reason_cols].mean() * 100
+    heatmap_data = heatmap_data.rename(columns=reason_labels)
     
-    # Tăng chiều ngang của figsize lên 12
-    fig_heat, ax_heat = plt.subplots(figsize=(12, 6))
-    sns.heatmap(heatmap_data, annot=True, fmt=".1f", cmap="YlGnBu", ax=ax_heat)
-    ax_heat.set_ylabel("")
+    # Tính tổng để sắp xếp từ cao xuống thấp (giúp biểu đồ đẹp hơn)
+    heatmap_data['Total_Desire'] = heatmap_data.sum(axis=1)
+    heatmap_data = heatmap_data.sort_values(by='Total_Desire', ascending=False).drop(columns=['Total_Desire'])
+    
+    # Vẽ biểu đồ Heatmap với Seaborn
+    fig_heat, ax_heat = plt.subplots(figsize=(14, 8))
+    sns.heatmap(
+        heatmap_data, 
+        annot=True,      # Hiển thị số liệu
+        fmt=".1f",       # Format 1 chữ số thập phân
+        cmap="YlGnBu",   # Màu từ Vàng - Lục - Lam
+        linewidths=.5,   # Thêm đường kẻ
+        linecolor='black', # Viền kẻ màu đen cho giống ảnh
+        cbar_kws={'label': 'Tỷ lệ đồng thuận (%)'}, 
+        ax=ax_heat
+    )
+    
+    # Tuỳ chỉnh Label và trục
+    ax_heat.set_ylabel("Nhóm ngành nghề", fontsize=12, labelpad=15)
+    ax_heat.set_xlabel("Lý do mong muốn tự động hóa", fontsize=12, labelpad=15)
+    plt.xticks(rotation=45, ha='right', fontsize=11)
+    plt.yticks(fontsize=11)
+    
     st.pyplot(fig_heat)
 
     st.markdown("<br>", unsafe_allow_html=True)
 
     # Thẻ Insight nằm dưới cùng
-    st.success("**Insight:** **Giải phóng thời gian** và **chống sự lặp lại** là 2 lý do lớn nhất. Tác vụ về 'Duy trì hồ sơ giao dịch/Log', 'Theo dõi Bug' đang khiến nhân sự tốn nhiều công sức nhất.")
+    st.info("💡 **Insight:** Nhân sự ngành Công nghệ thông tin mong muốn tự động hóa chủ yếu để giải phóng thời gian khỏi các tác vụ lặp lại, thay vì giảm độ khó hay áp lực công việc. Đặc biệt, các nhóm làm việc gần người dùng như Computer User Support Specialists có nhu cầu cao nhất về tự động hóa tác vụ lặp lại (**45.5%**), trong khi các vị trí kỹ thuật và kiến trúc hệ thống lại quan tâm nhiều hơn đến việc tiết kiệm thời gian (**60.0%**) và mở rộng quy mô công việc (**38.8%**).")
 
 # ==========================================
 # TAB 4: NĂNG LỰC THỰC TẾ & KHOẢNG CÁCH (RQ3, RQ4)
