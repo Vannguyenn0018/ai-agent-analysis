@@ -315,7 +315,6 @@ with tab1:
     
     # 4. Thêm thẻ Insight
     st.info("💡 **Insight mô tả:** Giúp nhận diện ngay lập tức nhóm ngành nào đang có xu hướng 'trẻ hóa' (tỷ lệ Gen Z cao) hoặc ngành nào giữ chân được nhân sự bền vững (Millennials & Gen X+ chiếm ưu thế).")
-
 # ==========================================
 # TAB 2: CHÂN DUNG & THÁI ĐỘ (RQ1)
 # ==========================================
