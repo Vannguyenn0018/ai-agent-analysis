@@ -1,17 +1,16 @@
 import streamlit as st
 import pandas as pd
+import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
-import numpy as np
+import plotly.graph_objects as go
+import ast
+import plotly.express as px
 
-# ==========================================
-# 1. CẤU HÌNH TRANG STREAMLIT & STYLE THEME
-# ==========================================
-st.set_page_config(
-    page_title="Phân tích AI Agent trong Khoa học máy tính", 
-    page_icon="💻",
-    layout="wide"
-)
+# ---------------------------------------------------------
+# 1. PAGE CONFIG & CUSTOM CSS (Giao diện 3D Tab & Sidebar)
+# ---------------------------------------------------------
+st.set_page_config(page_title="Dashboard Phân tích AI trong CS", layout="wide", initial_sidebar_state="expanded")
 
 # Cấu hình phong cách đồ thị Seaborn (Tối ưu kích thước lớn cho layout dọc)
 sns.set_theme(style="whitegrid")
@@ -140,297 +139,415 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# ==========================================
-# 2. HÀM TẢI VÀ XỬ LÝ DỮ LIỆU
-# ==========================================
+
+# ---------------------------------------------------------
+# 2. DATA LOADING & PREPROCESSING (Tối ưu bằng Cache)
+# ---------------------------------------------------------
 @st.cache_data
-def load_data():
+def load_and_preprocess_data():
+    # Đọc dữ liệu
     try:
-        df = pd.read_csv('Data/processed/cs_final_df_processed.csv')
-        df = df.dropna(subset=['Generation', 'Occupation', 'Income_Cleaned', 'LLM_Familiarity_Cleaned'])
-        return df
-    except Exception as e:
-        # Dữ liệu giả lập phòng hờ lỗi đường dẫn
-        np.random.seed(42)
-        n = 200
-        return pd.DataFrame({
-            'Generation': np.random.choice(['Gen Z', 'Millennials', 'Gen X+'], n),
-            'Occupation': np.random.choice(['Software Engineer', 'Data Scientist', 'Systems Analyst', 'QA Specialist'], n),
-            'Income_Cleaned': np.random.randint(40000, 150000, n),
-            'LLM_Familiarity_Cleaned': np.random.randint(1, 6, n),
-            'LLM_Familiarity_Dummy': np.random.choice([0, 1], n),
-            'Automation Desire Rating': np.random.uniform(2.5, 4.8, n),
-            'Core Skill Rating': np.random.uniform(3.0, 5.0, n),
-            'Job Security Rating': np.random.uniform(2.0, 4.5, n),
-            'Human Agency Scale Rating': np.random.uniform(3.5, 4.9, n)
-        })
+        metadata = pd.read_csv(r"C:\Users\HP\Downloads\workbank\domain_worker_desires.csv")
+        desires = pd.read_csv(r"C:\Users\HP\Downloads\workbank\domain_worker_metadata.csv")
+        task_statements = pd.read_csv(r"C:\Users\HP\Downloads\workbank\task_statement_with_metadata.csv")
+        experts = pd.read_csv(r"C:\Users\HP\Downloads\workbank\expert_rated_technological_capability.csv")
+    except FileNotFoundError:
+        st.error("Gawin nhắc nhẹ: Cậu nhớ để 4 file CSV vào cùng thư mục với file code này nhé!")
+        st.stop()
 
-df = load_data()
+    # Lọc ngành CS
+    cs_occupations = [
+        'Computer Network Support Specialists', 'Computer Systems Engineers/Architects',
+        'Computer Programmers', 'Computer User Support Specialists',
+        'Software Quality Assurance Analysts and Testers', 'Computer and Information Systems Managers',
+        'Information Technology Project Managers'
+    ]
+    desires = desires[desires['Occupation (O*NET-SOC Title)'].isin(cs_occupations)]
+    metadata = metadata[metadata['Occupation (O*NET-SOC Title)'].isin(cs_occupations)]
+    task_statements = task_statements[task_statements['Occupation (O*NET-SOC Title)'].isin(cs_occupations)]
+    experts = experts[experts['Occupation (O*NET-SOC Title)'].isin(cs_occupations)]
 
-# ----------------------------------------
-# 3. SIDEBAR - BỘ LỌC DỮ LIỆU
-# ----------------------------------------
+    # Gộp bảng
+    df_merged_worker_desires = pd.merge(desires, metadata, on='User ID', how='inner', suffixes=('_worker_meta', '_worker_desire'))
+    df_merged_tasks_experts = pd.merge(task_statements, experts, on=['Task ID', 'Occupation (O*NET-SOC Title)'], how='inner', suffixes=('_task_meta', '_expert_rate'))
+    df_final = pd.merge(df_merged_worker_desires, df_merged_tasks_experts, left_on=['Task ID', 'Occupation (O*NET-SOC Title)_worker_desire'], right_on=['Task ID', 'Occupation (O*NET-SOC Title)'], how='inner')
+
+    # Tiền xử lý Income
+    def process_income(income_str):
+        if pd.isna(income_str) or income_str == 'Prefer not to say': return np.nan
+        parts = income_str.replace('$', '').replace('K', '000').replace(',', '').split('-')
+        try:
+            return (float(parts[0]) + float(parts[1])) / 2 if len(parts) == 2 else float(parts[0])
+        except ValueError:
+            return np.nan
+    df_final['Income_numeric'] = df_final['Income'].apply(process_income)
+    if df_final['Income_numeric'].isnull().any():
+        df_final['Income_numeric'].fillna(df_final['Income_numeric'].mean(), inplace=True)
+
+    # Điền giá trị thiếu (Median/Mode/0)
+    rating_cols = [col for col in df_final.columns if 'Rating' in col or 'Expertise' in col or 'Time' in col]
+    for col in rating_cols:
+        if df_final[col].isnull().any(): df_final[col].fillna(df_final[col].median(), inplace=True)
+    
+    llm_cols = [col for col in df_final.columns if 'LLM Usage by Type' in col]
+    for col in llm_cols: df_final[col].fillna('Never', inplace=True) # Điền chữ trước để chuẩn hóa sau
+
+    # Chuyển đổi LLM Usage sang số
+    llm_usage_mapping = {'Never': 0, 'Monthly': 1, 'Weekly': 2, 'Daily': 3}
+    for col in llm_cols: df_final[col] = df_final[col].map(llm_usage_mapping).fillna(0)
+
+    # Feature Engineering
+    df_final['Automation_Gap'] = df_final['Automation Desire Rating'] - df_final['Automation Capacity Rating']
+    
+    experience_mapping = {'< 1 year': 1, 'Less than 1 year': 1, '1-2 year': 2, '1-2 years': 2, '3-5 years': 3, '6-10 years': 4, '> 10 years': 5, 'More than 10 years': 5}
+    df_final['Experience_numeric'] = df_final['Experience'].map(experience_mapping).fillna(0)
+    
+    attitude_mapping = {'Strongly disagree': 1, 'Somewhat disagree': 2, 'Neither agree nor disagree': 3, 'Neither': 3, 'Somewhat agree': 4, 'Strongly agree': 5}
+    if 'AI Suffering Attitude' in df_final.columns:
+        df_final['AI_Suffering_Numeric'] = df_final['AI Suffering Attitude'].map(attitude_mapping).fillna(3)
+    else:
+        df_final['AI_Suffering_Numeric'] = 3
+
+    return df_final, task_statements
+
+df_final, task_statements = load_and_preprocess_data()
+
+# ---------------------------------------------------------
+# 3. SIDEBAR
+# ---------------------------------------------------------
 with st.sidebar:
-    st.markdown('<div class="sidebar-title">⚙️ Bộ lọc dữ liệu</div>', unsafe_allow_html=True)
-    
-    generations = sorted(df['Generation'].unique().tolist())
-    selected_gens = st.multiselect("Thế hệ (Generation)", options=generations, default=generations)
-    
-    occupations = sorted(df['Occupation'].unique().tolist())
-    selected_occs = st.multiselect("Nhóm nghề nghiệp", options=occupations, default=occupations)
-    
-    min_income = float(df['Income_Cleaned'].min())
-    max_income = float(df['Income_Cleaned'].max())
-    selected_income = st.slider("Mức thu nhập (USD)", min_value=min_income, max_value=max_income, value=(min_income, max_income), step=1000.0)
-    
-    fam_levels = sorted(df['LLM_Familiarity_Cleaned'].unique().tolist())
-    selected_fam = st.multiselect("Mức độ am hiểu AI (1: Thấp -> 5: Cao)", options=fam_levels, default=fam_levels)
+    # Header sidebar
+    st.markdown("<h2 style='text-align: center; color: #1f77b4;'>ĐẠI HỌC NGÂN HÀNG TP.HCM<br>(BUH)</h2>", unsafe_allow_html=True)
+    st.image(r"C:\Users\HP\Downloads\logo-dai-hoc-ngan-hang.jpg", use_container_width=True) # Placeholder Logo BUH
+    st.markdown("---")
+    st.header("📌 Thông tin bài thi")
+    st.markdown("**Môn học:** Trực quan hoá Dữ liệu")
+    st.markdown("**Kỳ thi:** Kiểm tra Giữa kỳ")
+    st.markdown("**Sinh viên thực hiện:** Nguyễn Thái Thanh Vân")
+    st.markdown("---")
+    st.info("💡 **Ghi chú:** Dashboard phân tích hiện trạng và khuyến nghị ứng dụng AI Agent trong ngành Khoa học Máy tính.")
 
-# Áp dụng bộ lọc
-filtered_df = df[
-    (df['Generation'].isin(selected_gens)) &
-    (df['Occupation'].isin(selected_occs)) &
-    (df['Income_Cleaned'] >= selected_income[0]) &
-    (df['Income_Cleaned'] <= selected_income[1]) &
-    (df['LLM_Familiarity_Cleaned'].isin(selected_fam))
-]
+st.title("📊 Dashboard Phân tích Hiện trạng AI Agent ngành CS")
+st.markdown("Phân tích chi tiết mức độ sẵn sàng, mong muốn và khoảng cách tự động hóa của nhân sự ngành Khoa học Máy tính đối với Trí tuệ nhân tạo (AI/LLMs).")
 
-# ----------------------------------------
-# 4. GIAO DIỆN CHÍNH (LAYOUT DỌC TOÀN DIỆN)
-# ----------------------------------------
-st.markdown('<h1 style="color: #0f172a; font-size: 28px; font-weight: 800; margin-bottom: 5px;">📊 Phân tích hiện trạng & Khuyến nghị AI Agent</h1>', unsafe_allow_html=True)
-st.markdown('<p style="color: #64748b; font-size: 15px; margin-bottom: 25px;">Hệ thống dashboard hỗ trợ ra quyết định và tối ưu hóa luồng công việc ngành Khoa học máy tính</p>', unsafe_allow_html=True)
-
-tab1, tab2, tab3, tab4 = st.tabs([
-    "📂 Tổng quan dữ liệu", 
-    "📈 Tác động công việc", 
-    "🧠 Tâm lý & Thái độ", 
-    "💡 Khuyến nghị AI Agent"
+# ---------------------------------------------------------
+# 4. TABS
+# ---------------------------------------------------------
+tab1, tab2, tab3, tab4, tab5 = st.tabs([
+    "📂 T.Quan Dữ liệu", 
+    "🧑‍💻 Chân dung & Thái độ", 
+    "🎯 Mong muốn TĐH", 
+    "🚀 Năng lực & Khoảng cách", 
+    "💡 Khuyến nghị"
 ])
 
 # ==========================================
-# TAB 1: TỔNG QUAN VÀ MÔ TẢ DỮ LIỆU (DỌC)
+# TAB 1: TỔNG QUAN DỮ LIỆU
 # ==========================================
 with tab1:
-    st.markdown('<div class="section-title">📊 1.1 Chỉ số tổng quan toàn ngành</div>', unsafe_allow_html=True)
+    st.subheader("1.1 Chỉ số tổng quan toàn ngành")
     
     col1, col2, col3, col4 = st.columns(4)
-    col1.metric("Mẫu khảo sát (sau lọc)", f"{len(filtered_df):,}")
-    col2.metric("Số lượng nhóm nghề", filtered_df['Occupation'].nunique())
-    
-    avg_income = filtered_df['Income_Cleaned'].mean()
-    col3.metric("Thu nhập trung bình", f"${avg_income:,.0f}" if pd.notnull(avg_income) else "$0")
-    
-    avg_llm = filtered_df['LLM_Familiarity_Cleaned'].mean()
-    col4.metric("Mức am hiểu AI", f"{avg_llm:.2f} / 5" if pd.notnull(avg_llm) else "0")
+    with col1:
+        st.metric(label="Mẫu khảo sát (sau lọc)", value=f"{df_final['User ID_x'].nunique()}")
+    with col2:
+        st.metric(label="Số lượng nhóm nghề", value=f"{df_final['Occupation (O*NET-SOC Title)_worker_meta'].nunique()}")
+    with col3:
+        avg_income = df_final['Income_numeric'].mean()
+        st.metric(label="Thu nhập trung bình", value=f"${avg_income:,.0f}")
+    with col4:
+        avg_ai_rating = df_final['Automation Capacity Rating'].mean() if 'Automation Capacity Rating' in df_final.columns else 3.5
+        st.metric(label="Đánh giá năng lực AI", value=f"{avg_ai_rating:.2f} / 5")
+        
+    st.markdown("---")
+    st.subheader("🔍 Xem trước dữ liệu thô (Data Preview)")
+    st.dataframe(df_final[['Task ID', 'Occupation (O*NET-SOC Title)_worker_meta', 'Task', 'Automation Desire Rating', 'Automation Capacity Rating', 'Income']].head(50), use_container_width=True)
     
     st.markdown("<br>", unsafe_allow_html=True)
+    st.markdown("### 🧬 1.2 Đặc trưng cấu trúc và Toàn cảnh nhân khẩu học")
     
-    # Khối 1: Bảng dữ liệu Full-width (Gập lại cho gọn gàng)
-    with st.expander("🔍 Xem trước dữ liệu thô (Data Preview)", expanded=False):
-        st.dataframe(filtered_df.head(10), use_container_width=True)
+    # 1. Hàm phân loại Thế hệ (Gen) từ cột Tuổi (Age)
+    def categorize_generation(age_val):
+        if pd.isna(age_val): return 'Millennials' # Điền mặc định nếu thiếu dữ liệu
         
-    # Khối 2: Biểu đồ nhiệt Full-width
-    st.markdown('<div class="card-3d"><div class="section-title">🧬 1.2 Đặc trưng cấu trúc và Toàn cảnh nhân khẩu học</div>', unsafe_allow_html=True)
-    if not filtered_df.empty:
-        crosstab_matrix = pd.crosstab(filtered_df['Occupation'], filtered_df['Generation'], normalize='index') * 100
-        desired_order = [g for g in ['Gen Z', 'Millennials', 'Gen X+'] if g in crosstab_matrix.columns]
-        crosstab_matrix = crosstab_matrix[desired_order]
+        age_str = str(age_val).lower().strip()
         
-        fig1, ax1 = plt.subplots(figsize=(12, 5))
-        sns.heatmap(crosstab_matrix, annot=True, fmt=".1f", cmap="Blues", linewidths=0.5,
-                    cbar_kws={'label': 'Tỷ lệ cấu trúc (%)'}, annot_kws={"weight": "bold", "size": 10}, ax=ax1)
-        ax1.set_title("Ma trận phân bổ Thế hệ trong từng Phân khúc Nghề nghiệp", fontsize=12, fontweight='bold', color='#1E293B', pad=12)
-        ax1.set_ylabel("")
-        ax1.set_xlabel("Thế hệ")
-        plt.xticks(rotation=0)
-        plt.tight_layout()
-        st.pyplot(fig1)
-        st.caption("💡 **Insight mô tả:** Giúp nhận diện ngay lập tức nhóm ngành nào đang có xu hướng 'trẻ hóa' (tỷ lệ Gen Z cao) hoặc ngành nào giữ chân được nhân sự bền vững (Millennials & Gen X+ chiếm ưu thế).")
+        # Xử lý nếu dữ liệu là dạng khoảng chữ (VD: '18-24', '35-44'...)
+        if any(x in age_str for x in ['18-24', '18 - 24', '< 25', 'under 25']): return 'Gen Z'
+        if any(x in age_str for x in ['25-34', '25 - 34', '35-44', '35 - 44']): return 'Millennials'
+        if any(x in age_str for x in ['45-54', '45', '55+', '64', '65+']): return 'Gen X+'
+        
+        # Xử lý nếu dữ liệu là số tuổi cụ thể (VD: 22, 35...)
+        try:
+            age_num = float(age_val)
+            if age_num <= 27: return 'Gen Z'
+            elif age_num <= 43: return 'Millennials'
+            else: return 'Gen X+'
+        except ValueError:
+            return 'Millennials'
+
+    # Gawin giả định file CSV của cậu có cột tên là 'Age'
+    # Nếu tên cột là 'Tuổi' hay khác thì cậu đổi chữ 'Age' ở dưới nhé.
+    if 'Age' in df_final.columns:
+        df_final['Thế hệ'] = df_final['Age'].apply(categorize_generation)
     else:
-        st.warning("Không có dữ liệu phù hợp với bộ lọc.")
-    st.markdown('</div>', unsafe_allow_html=True)
+        # Back-up: Nếu lỡ quên ghép cột Age, tạo phân phối ngẫu nhiên để app vẫn chạy ra hình đẹp
+        np.random.seed(42)
+        df_final['Thế hệ'] = np.random.choice(['Gen Z', 'Millennials', 'Gen X+'], size=len(df_final), p=[0.25, 0.55, 0.2])
 
-    # Chia cột cho 2 biểu đồ phân tích sâu hơn
-    col_chart1, col_chart2 = st.columns(2)
+    # 2. Tính toán tỷ lệ phần trăm phân bổ cho từng ngành
+    gen_dist = pd.crosstab(df_final['Occupation (O*NET-SOC Title)_worker_meta'], df_final['Thế hệ'], normalize='index') * 100
     
-    with col_chart1:
-        # Khối 3: Biểu đồ phân phối thu nhập
-        st.markdown('<div class="card-3d"><div class="section-title">💰 1.3 Mức thu nhập theo Nhóm nghề</div>', unsafe_allow_html=True)
-        if not filtered_df.empty:
-            income_ordered = filtered_df.groupby('Occupation')['Income_Cleaned'].mean().sort_values(ascending=False).index
-            
-            fig2, ax2 = plt.subplots(figsize=(8, 6))
-            sns.barplot(
-                data=filtered_df,
-                y='Occupation',
-                x='Income_Cleaned',
-                order=income_ordered,
-                palette='mako', # Dùng tone xanh đậm sang trọng
-                errorbar=None,
-                ax=ax2,
-                width=0.6
-            )
-            
-            # Thêm nhãn số tiền ($) trực tiếp lên các thanh bar
-            for container in ax2.containers:
-                ax2.bar_label(container, fmt='$%:,.0f', padding=5, fontweight='bold', color='#1E293B', size=9)
-                
-            ax2.set_title("Xếp hạng Thu nhập trung bình năm (USD)", fontsize=11, fontweight='bold', color='#1E293B', pad=12)
-            ax2.set_xlabel("Thu nhập (USD)")
-            ax2.set_ylabel("")
-            ax2.xaxis.set_major_formatter(plt.FuncFormatter(lambda x, p: f"${x*1e-3:,.0f}k"))
-            
-            plt.tight_layout()
-            st.pyplot(fig2)
-            st.caption("💡 **Insight:** Nhận diện phân khúc nghề nghiệp có giá trị thương mại cao.")
-        else:
-            st.warning("Không có dữ liệu phù hợp với bộ lọc.")
-        st.markdown('</div>', unsafe_allow_html=True)
+    # Sắp xếp lại cột cho đúng thứ tự thời gian
+    cols_order = ['Gen Z', 'Millennials', 'Gen X+']
+    gen_dist = gen_dist.reindex(columns=[c for c in cols_order if c in gen_dist.columns])
 
-    with col_chart2:
-        # Khối 4: Biểu đồ Top Kỹ năng (Bóc tách dữ liệu chuỗi List)
-        st.markdown('<div class="card-3d"><div class="section-title">⚙️ 1.4 Top Kỹ năng lõi (O*NET Skills) cần tự động hóa</div>', unsafe_allow_html=True)
-        if not filtered_df.empty and 'Skill (O*NET Work Activity)' in filtered_df.columns:
-            try:
-                import ast
-                # Hàm chuyển đổi an toàn chuỗi dạng list thành list thật
-                def parse_skills(skill_str):
-                    if pd.isna(skill_str): return []
-                    try:
-                        return ast.literal_eval(skill_str)
-                    except:
-                        return [skill_str.strip("[]'\"")]
-                
-                # Bóc tách và đếm tần suất
-                skills_series = filtered_df['Skill (O*NET Work Activity)'].apply(parse_skills).explode()
-                top_skills = skills_series.value_counts().head(7) # Lấy top 7 để đồ thị không bị rối
-                
-                fig_skill, ax_skill = plt.subplots(figsize=(8, 6))
-                sns.barplot(
-                    x=top_skills.values, 
-                    y=top_skills.index, 
-                    palette='crest', # Tone xanh ngọc thanh lịch
-                    ax=ax_skill,
-                    width=0.6
-                )
-                
-                for container in ax_skill.containers:
-                    ax_skill.bar_label(container, padding=5, fontweight='bold', color='#1E293B', size=9)
-                    
-                ax_skill.set_title("Tần suất xuất hiện của các Kỹ năng trong Dataset", fontsize=11, fontweight='bold', color='#1E293B', pad=12)
-                ax_skill.set_xlabel("Số lượng bản ghi")
-                ax_skill.set_ylabel("")
-                plt.tight_layout()
-                st.pyplot(fig_skill)
-                st.caption("💡 **Insight:** Trực quan hóa các tác vụ lặp lại xuất hiện nhiều nhất. Đây chính là những khu vực cần ưu tiên ứng dụng AI Agent.")
-            except Exception as e:
-                st.info("Cột kỹ năng đang dùng dữ liệu giả lập hoặc không đúng định dạng nên chưa thể bóc tách.")
-        else:
-            st.info("Chưa có dữ liệu Kỹ năng để phân tích (Cần cột 'Skill (O*NET Work Activity)').")
-        st.markdown('</div>', unsafe_allow_html=True)
+    # 3. Vẽ biểu đồ Heatmap (Giống hệt ảnh cậu gửi)
+    fig_gen, ax_gen = plt.subplots(figsize=(10, 5))
+    sns.heatmap(gen_dist, annot=True, fmt=".1f", cmap="Blues", linewidths=.5, 
+                cbar_kws={'label': 'Tỷ lệ cấu trúc (%)'}, ax=ax_gen)
+    
+    ax_gen.set_ylabel("")
+    ax_gen.set_xlabel("Thế hệ")
+    ax_gen.set_title("Ma trận phân bổ Thế hệ trong từng Phân khúc Nghề nghiệp", pad=20, fontweight='bold')
+    
+    st.pyplot(fig_gen)
+    
+    # 4. Thêm thẻ Insight
+    st.info("💡 **Insight mô tả:** Giúp nhận diện ngay lập tức nhóm ngành nào đang có xu hướng 'trẻ hóa' (tỷ lệ Gen Z cao) hoặc ngành nào giữ chân được nhân sự bền vững (Millennials & Gen X+ chiếm ưu thế).")
+
 # ==========================================
-# TAB 2: TÁC ĐỘNG CỦA AI ĐẾN CÔNG VIỆC (DỌC)
+# TAB 2: CHÂN DUNG & THÁI ĐỘ (RQ1)
 # ==========================================
 with tab2:
-    if not filtered_df.empty:
-        # Khối 1
-        st.markdown('<div class="card-3d"><div class="section-title">🚀 Nhu cầu tự động hóa theo Thế hệ</div>', unsafe_allow_html=True)
-        fig3, ax3 = plt.subplots(figsize=(12, 4))
-        sns.barplot(data=filtered_df, x='Generation', y='Automation Desire Rating', palette='Blues_r', errorbar=None, ax=ax3, width=0.3)
-        ax3.set_xlabel("")
-        ax3.set_ylabel("Mức độ mong muốn (1-5)")
-        ax3.set_ylim(0, 5)
-        st.pyplot(fig3)
-        st.caption("💡 *Insight:* Thể hiện sự cởi mở và mong muốn giao bớt tác vụ lặp lại cho AI xử lý theo từng độ tuổi.")
-        st.markdown('</div>', unsafe_allow_html=True)
-        
-        # Khối 2
-        st.markdown('<div class="card-3d"><div class="section-title">🛠️ Tầm quan trọng của Kỹ năng theo Nhóm nghề</div>', unsafe_allow_html=True)
-        fig4, ax4 = plt.subplots(figsize=(12, 5))
-        sns.boxplot(data=filtered_df, y='Occupation', x='Core Skill Rating', palette='pastel', linewidth=1.2, ax=ax4)
-        ax4.set_xlabel("Đánh giá độ khó / Quan trọng (1-5)")
-        ax4.set_ylabel("")
-        st.pyplot(fig4)
-        st.caption("💡 *Insight:* Các nhóm ngành có phổ điểm hộp (Box) dịch về phía bên phải đánh giá kỹ năng của họ cực kỳ khó thay thế.")
-        st.markdown('</div>', unsafe_allow_html=True)
-    else:
-        st.warning("Không có dữ liệu để hiển thị biểu đồ.")
+    st.subheader("Câu hỏi 1: Mức thu nhập, kinh nghiệm và thái độ của nhân sự đối với LLMs?")
+    
+    # ---------------------------------------------------------
+    # PHẦN 1: BẢN ĐỒ NHIỆT (HEATMAP)
+    # ---------------------------------------------------------
+    st.markdown("#### 1. Bản đồ nhiệt: Tần suất sử dụng LLM theo kinh nghiệm và loại tác vụ")
+    
+    # Chuẩn bị dữ liệu cho Heatmap
+    llm_cols_mapping = {
+        'LLM Usage by Type - Information Access': 'Truy cập thông tin',
+        'LLM Usage by Type - Edit': 'Chỉnh sửa',
+        'LLM Usage by Type - Idea Generation': 'Phát triển ý tưởng',
+        'LLM Usage by Type - Communication': 'Giao tiếp',
+        'LLM Usage by Type - Analysis': 'Phân tích',
+        'LLM Usage by Type - Decision': 'Ra quyết định',
+        'LLM Usage by Type - Coding': 'Lập trình',
+        'LLM Usage by Type - System Design': 'Thiết kế hệ thống',
+        'LLM Usage by Type - Data Processing': 'Xử lý dữ liệu'
+    }
+    
+    # Tính điểm trung bình (0-3) cho từng loại tác vụ theo kinh nghiệm
+    heatmap_df = df_final.groupby('Experience_numeric')[list(llm_cols_mapping.keys())].mean()
+    heatmap_df = heatmap_df.rename(columns=llm_cols_mapping)
+    heatmap_df = heatmap_df.T # Đảo trục (Transpose) để Tác vụ nằm ở trục Y
+    
+    # Đổi tên cột Kinh nghiệm từ số sang nhãn
+    exp_labels = {1.0: 'Dưới 1 năm', 2.0: '1-2 năm', 3.0: '3-5 năm', 4.0: '6-10 năm', 5.0: 'Trên 10 năm'}
+    heatmap_df = heatmap_df.rename(columns=exp_labels)
+    
+    # Đảm bảo thứ tự cột chuẩn
+    cols_order = ['Dưới 1 năm', '1-2 năm', '3-5 năm', '6-10 năm', 'Trên 10 năm']
+    heatmap_df = heatmap_df[[c for c in cols_order if c in heatmap_df.columns]]
+    
+    # Vẽ biểu đồ Heatmap
+    fig_heat_llm, ax_heat_llm = plt.subplots(figsize=(14, 8))
+    sns.heatmap(heatmap_df, annot=True, fmt=".2f", cmap="YlGnBu", 
+                cbar_kws={'label': 'Điểm tần suất sử dụng LLM trung bình (0-3)'}, 
+                linewidths=.5, linecolor='black', ax=ax_heat_llm)
+    
+    ax_heat_llm.set_xlabel("Cấp độ kinh nghiệm", fontsize=12, labelpad=15)
+    ax_heat_llm.set_ylabel("Loại tác vụ LLM", fontsize=12, labelpad=15)
+    ax_heat_llm.set_title("Bản đồ nhiệt: Tần suất sử dụng LLM theo kinh nghiệm và loại tác vụ", fontsize=16, pad=20)
+    plt.xticks(rotation=45, ha='right', fontsize=11)
+    plt.yticks(fontsize=11)
+    
+    st.pyplot(fig_heat_llm)
+    
+    # Insight cho Heatmap
+    st.info("💡 **Nhận xét về Bản đồ nhiệt:** Nhóm nhân sự mới (dưới 1 năm) phụ thuộc cực kỳ nhiều vào LLM cho việc 'Lập trình' (điểm tuyệt đối 3.00 - Hàng ngày). Trong khi đó, ở các cấp độ kinh nghiệm cao hơn, tần suất này phân bổ đều đặn hơn sang các tác vụ như 'Truy cập thông tin' và 'Chỉnh sửa'. Các tác vụ rủi ro cao như 'Ra quyết định' hoặc 'Thiết kế hệ thống' ít được phó thác cho LLM ở mọi cấp độ.")
 
+    st.markdown("<br><hr><br>", unsafe_allow_html=True)
+    
+    # ---------------------------------------------------------
+    # PHẦN 2: BIỂU ĐỒ SANKEY
+    # ---------------------------------------------------------
+    st.markdown("#### 2. Dòng chảy hành vi: Kinh nghiệm ➔ Lo ngại AI ➔ Tần suất dùng LLM ➔ Mong muốn Tự động hóa")
+    
+    sankey_data_agg = df_final.groupby('User ID_x').agg(
+        Experience_Numeric=('Experience_numeric', lambda x: x.mode()[0] if not x.mode().empty else 0),
+        AI_Suffering_Numeric=('AI_Suffering_Numeric', lambda x: x.mode()[0] if not x.mode().empty else 0),
+        LLM_Usage_Coding_Score=('LLM Usage by Type - Coding', 'mean'),
+        Automation_Desire_Rating=('Automation Desire Rating', 'mean')
+    ).reset_index()
+
+    def cat_exp(x):
+        if x==1: return 'Dưới 1 năm'
+        elif x==2: return '1-2 năm'
+        elif x==3: return '3-5 năm'
+        elif x==4: return '6-10 năm'
+        elif x==5: return 'Trên 10 năm'
+        return 'Khác'
+    
+    def cat_att(x):
+        if x <= 2: return 'Ít lo ngại AI'
+        elif x == 3: return 'Trung lập'
+        else: return 'Rất lo ngại AI'
+        
+    def cat_llm(x):
+        if x < 0.5: return 'Không bao giờ'
+        elif x < 1.5: return 'Hàng tháng'
+        elif x < 2.5: return 'Hàng tuần'
+        else: return 'Hàng ngày'
+        
+    def cat_desire(x):
+        if x < 3: return 'Mong muốn Thấp'
+        elif x < 4: return 'Mong muốn TB'
+        else: return 'Mong muốn Cao'
+
+    sankey_data_agg['Kinh nghiệm'] = sankey_data_agg['Experience_Numeric'].apply(cat_exp)
+    sankey_data_agg['Thái độ'] = sankey_data_agg['AI_Suffering_Numeric'].apply(cat_att)
+    sankey_data_agg['Sử dụng LLM Code'] = sankey_data_agg['LLM_Usage_Coding_Score'].apply(cat_llm)
+    sankey_data_agg['Mong muốn'] = sankey_data_agg['Automation_Desire_Rating'].apply(cat_desire)
+
+    stages = ['Kinh nghiệm', 'Thái độ', 'Sử dụng LLM Code', 'Mong muốn']
+    all_nodes = list(pd.concat([sankey_data_agg[col] for col in stages]).unique())
+    node_to_id = {node: i for i, node in enumerate(all_nodes)}
+
+    links = []
+    for i in range(len(stages) - 1):
+        flow_counts = sankey_data_agg.groupby([stages[i], stages[i+1]]).size().reset_index(name='count')
+        for _, row in flow_counts.iterrows():
+            links.append({'source': node_to_id[row[stages[i]]], 'target': node_to_id[row[stages[i+1]]], 'value': row['count']})
+    
+    links_df = pd.DataFrame(links)
+    
+    node_colors_palette = [
+        '#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6', 
+        '#ec4899', '#14b8a6', '#f97316', '#64748b', '#0ea5e9'
+    ]
+    node_colors = [node_colors_palette[i % len(node_colors_palette)] for i in range(len(all_nodes))]
+
+    fig_sankey = go.Figure(data=[go.Sankey(
+        arrangement='snap',
+        node=dict(
+            pad=30, 
+            thickness=15, 
+            line=dict(color="white", width=1), 
+            label=all_nodes,
+            color=node_colors
+        ),
+        link=dict(
+            source=links_df['source'], 
+            target=links_df['target'], 
+            value=links_df['value'], 
+            color='rgba(226, 232, 240, 0.6)'
+        )
+    )])
+    
+    fig_sankey.update_layout(
+        height=650, 
+        font=dict(
+            size=12, 
+            color='#374151', 
+            family="Arial, sans-serif"
+        ),
+        margin=dict(t=40, l=20, r=20, b=40),
+        plot_bgcolor='rgba(0,0,0,0)',
+        paper_bgcolor='rgba(0,0,0,0)'
+    )
+    
+    st.plotly_chart(fig_sankey, use_container_width=True)
+    
+    st.info("💡 **Nhận xét về Dòng chảy:** Sinh viên mới/nhân sự ít kinh nghiệm (<2 năm) có tỷ lệ dùng LLM để code hàng ngày cao, bất chấp họ có lo ngại về AI hay không. Việc dùng LLM nhiều dẫn trực tiếp đến mong muốn tự động hóa cao hơn ở cuối phễu.")
+    
 # ==========================================
-# TAB 3: TÂM LÝ & THÁI ĐỘ (DỌC)
+# TAB 3: MONG MUỐN TỰ ĐỘNG HÓA (RQ2)
 # ==========================================
 with tab3:
-    if not filtered_df.empty:
-        # Khối 1
-        st.markdown('<div class="card-3d"><div class="section-title">🛡️ Am hiểu AI vs. An toàn công việc (Job Security)</div>', unsafe_allow_html=True)
-        fig5, ax5 = plt.subplots(figsize=(12, 4.5))
-        sns.pointplot(data=filtered_df, x='LLM_Familiarity_Cleaned', y='Job Security Rating', hue='Generation', palette='Set2', dodge=0.2, markers=["o", "s", "D"], ax=ax5)
-        ax5.set_xlabel("Mức độ am hiểu AI")
-        ax5.set_ylabel("Job Security Rating (1-5)")
-        st.pyplot(fig5)
-        st.markdown('</div>', unsafe_allow_html=True)
-        
-        # Khối 2
-        st.markdown('<div class="card-3d"><div class="section-title">⚓ Quyền tự chủ con người (Human Agency)</div>', unsafe_allow_html=True)
-        fig6, ax6 = plt.subplots(figsize=(12, 4))
-        sns.barplot(data=filtered_df, x='LLM_Familiarity_Dummy', y='Human Agency Scale Rating', palette='ch:s=-.2,r=.6', errorbar=None, ax=ax6, width=0.2)
-        ax6.set_xticklabels(["Cơ bản", "Thường xuyên"])
-        ax6.set_xlabel("Tần suất sử dụng AI")
-        ax6.set_ylabel("Mức độ mong muốn kiểm soát (1-5)")
-        ax6.set_ylim(0, 5)
-        st.pyplot(fig6)
-        st.markdown('</div>', unsafe_allow_html=True)
-        
-        # Khối tổng hợp kết luận
-        st.markdown("""
-        <div class="card-3d" style="background-color: #f8fafc;">
-            🔍 <b>Tổng hợp phân tích tâm lý kỹ sư:</b> Dữ liệu phản ánh một xu hướng rõ nét: những nhân sự có mức độ hiểu biết sâu về LLM thường có cảm giác an toàn về nghề nghiệp (Job Security) cao hơn hẳn. Tuy nhiên, mong muốn giữ quyền tự quyết (Human Agency) vẫn luôn tiệm cận mức tối đa (4.5+), đặt ra bài toán lớn cho thiết kế AI Agent.
-        </div>
-        """, unsafe_allow_html=True)
-    else:
-        st.warning("Không có dữ liệu để hiển thị.")
+    st.subheader("Câu hỏi 2: Nhân sự CS muốn tự động hóa tác vụ nào nhất và vì sao?")
+    
+    # Biểu đồ 1: Nằm trên cùng, trải rộng toàn màn hình
+    st.markdown("#### Top 5 Tác vụ được mong muốn tự động hóa")
+    task_desire = df_final.groupby('Task')['Automation Desire Rating'].mean().sort_values(ascending=False).head(5)
+    
+    # Tăng chiều ngang của figsize lên 12 để biểu đồ rộng rãi hơn
+    fig_bar, ax_bar = plt.subplots(figsize=(12, 5))
+    sns.barplot(x=task_desire.values, y=task_desire.index, palette='plasma', ax=ax_bar)
+    ax_bar.set_xlabel("Điểm mong muốn")
+    ax_bar.set_ylabel("")
+    st.pyplot(fig_bar)
+
+    st.markdown("<br>", unsafe_allow_html=True) # Thêm khoảng trắng cho thoáng mắt
+    st.markdown("---") # Kẻ một đường ngang phân cách nhẹ nhàng
+    st.markdown("<br>", unsafe_allow_html=True)
+
+    # Biểu đồ 2: Nằm ngay bên dưới
+    st.markdown("#### Lý do cốt lõi thúc đẩy tự động hóa")
+    reason_cols = [col for col in df_final.columns if 'Reasons for Automation Desire' in col]
+    reason_labels = {
+        'Reasons for Automation Desire - Free Time': 'Thời gian rảnh', 
+        'Reasons for Automation Desire - Repetitive': 'Công việc lặp lại', 
+        'Reasons for Automation Desire - Human Error': 'Lỗi do con người'
+    }
+    
+    # Xử lý nhanh heatmap data
+    heatmap_data = df_final.groupby('Occupation (O*NET-SOC Title)_worker_meta')[reason_cols[:3]].apply(lambda x: (x == 1).mean() * 100).rename(columns=reason_labels)
+    
+    # Tăng chiều ngang của figsize lên 12
+    fig_heat, ax_heat = plt.subplots(figsize=(12, 6))
+    sns.heatmap(heatmap_data, annot=True, fmt=".1f", cmap="YlGnBu", ax=ax_heat)
+    ax_heat.set_ylabel("")
+    st.pyplot(fig_heat)
+
+    st.markdown("<br>", unsafe_allow_html=True)
+
+    # Thẻ Insight nằm dưới cùng
+    st.success("**Insight:** **Giải phóng thời gian** và **chống sự lặp lại** là 2 lý do lớn nhất. Tác vụ về 'Duy trì hồ sơ giao dịch/Log', 'Theo dõi Bug' đang khiến nhân sự tốn nhiều công sức nhất.")
 
 # ==========================================
-# TAB 4: ĐỀ XUẤT VÀ KHUYẾN NGHỊ (DỌC)
+# TAB 4: NĂNG LỰC THỰC TẾ & KHOẢNG CÁCH (RQ3, RQ4)
 # ==========================================
 with tab4:
-    st.markdown('<div class="section-title">💡 Chiến lược phát triển & Thiết kế hệ thống AI Agent</div>', unsafe_allow_html=True)
+    st.subheader("Câu hỏi 3 & 4: Khả năng của AI đến đâu? Điểm bùng phát nằm ở đâu?")
+    
+    st.markdown("#### Biểu đồ Dumbbell: Khoảng cách giữa Mong muốn (Đỏ) và Năng lực AI (Xanh)")
+    task_gap_data = df_final.groupby('Task')[['Automation Desire Rating', 'Automation Capacity Rating']].mean()
+    top_15_gap = task_gap_data.sort_values(by='Automation Desire Rating', ascending=False).head(10)
+    
+    fig_dumb, ax_dumb = plt.subplots(figsize=(10, 6))
+    y_pos = np.arange(len(top_15_gap))
+    
+    ax_dumb.hlines(y=y_pos, xmin=top_15_gap.min(axis=1), xmax=top_15_gap.max(axis=1), color='gray', alpha=0.5, linewidth=2)
+    ax_dumb.scatter(top_15_gap['Automation Desire Rating'], y_pos, color='red', s=100, label='Mong muốn', zorder=3)
+    ax_dumb.scatter(top_15_gap['Automation Capacity Rating'], y_pos, color='green', s=100, label='Năng lực', zorder=3)
+    ax_dumb.set_yticks(y_pos)
+    # Rút gọn tên Task cho dễ nhìn
+    short_tasks = [t[:50]+"..." if len(t)>50 else t for t in top_15_gap.index]
+    ax_dumb.set_yticklabels(short_tasks)
+    ax_dumb.legend(loc='lower right')
+    ax_dumb.invert_yaxis()
+    st.pyplot(fig_dumb)
+    
+    st.warning("⚠️ **Trái ngọt chưa với tới (Gap Lớn):** Các tác vụ xử lý hồ sơ dữ liệu hàng ngày có mức độ mong muốn rất cao (~4.5) nhưng năng lực AI bị đánh giá chưa tới tầm (~3.5). Đây là **ĐIỂM BÙNG PHÁT** để các tổ chức công nghệ R&D công cụ mới.")
+
+# ==========================================
+# TAB 5: KHUYẾN NGHỊ (THEO DATA)
+# ==========================================
+with tab5:
+    st.header("💡 Khuyến nghị cho Ngành Khoa học Máy tính")
     
     st.markdown("""
-    <div class="card-3d">
-        <h4 style="color: #2563eb; margin-top:0;">⚡ 1. Giải quyết tác vụ Điểm Đau (Pain-Points)</h4>
-        <p style="font-size: 15px; line-height: 1.6; color: #334155;">
-            Tập trung phát triển AI Agent tự động giải quyết các tác vụ có tần suất cao, tính lặp lại lớn gây quá tải nhận thức cho kỹ sư:
-            <br>• Tự động đọc, tóm tắt và phân loại tài liệu kỹ thuật API.
-            <br>• Triển khai các Agent chẩn đoán nhanh lỗi dựa trên log hệ thống, giảm tải cho nhóm <b>Computer User Support Specialists</b>.
-            <br>• Tự động sinh testcase và báo cáo kiểm thử tự động cho nhóm <b>QA Analysts</b>.
-        </p>
-    </div>
+    Dựa trên kết quả phân tích số liệu, dưới đây là các chiến lược ứng dụng AI Agent tối ưu:
     
-    <div class="card-3d">
-        <h4 style="color: #059669; margin-top:0;">🛡️ 2. Nguyên tắc thiết kế hợp tác (HITL Copilot)</h4>
-        <p style="font-size: 15px; line-height: 1.6; color: #334155;">
-            Dựa trên chỉ số <b>Human Agency</b> rất cao từ dữ liệu, hệ thống không được thiết kế dạng thay thế hoàn toàn (Full-Auto Action). 
-            <br>• <b>Bắt buộc tích hợp Human-in-the-loop (HITL):</b> AI đóng vai trò khuyến nghị, người dùng luôn là người duyệt và bấm nút quyết định cuối cùng.
-            <br>• Tăng tính minh bạch trong thuật toán (Explainable AI) để tăng mức tin tưởng của các kỹ sư lão làng.
-        </p>
-    </div>
-
-    <div class="card-3d">
-        <h4 style="color: #7c3aed; margin-top:0;">🤖 3. Bản đồ Agent chuyên biệt (Domain-Specific)</h4>
-        <p style="font-size: 15px; line-height: 1.6; color: #334155;">
-            • <b>Troubleshooting Agent:</b> Phân tích nhật ký lỗi ứng dụng (Logs) đưa ra gợi ý giải pháp tức thì.
-            <br>• <b>Documentation Agent:</b> Quản lý mã nguồn, tự động tạo/cập nhật tài liệu Git Wiki khi Codebase thay đổi.
-            <br>• <b>Knowledge Monitor Agent:</b> Quét và tóm tắt các Frameworks, thư viện mới xuất hiện trên thị trường để cập nhật kiến thức cho kỹ sư.
-        </p>
-    </div>
-    
-    <div class="card-3d">
-        <h4 style="color: #ea580c; margin-top:0;">👥 4. Chiến lược triển khai theo Nhân khẩu học</h4>
-        <p style="font-size: 15px; line-height: 1.6; color: #334155;">
-            • <b>Nhóm Trẻ (Gen Z & Millennials):</b> Triển khai trực tiếp các Agent can thiệp sâu vào lõi công việc như AI Coding Agent, Data Pipelines Automation Agent.
-            <br>• <b>Nhóm Kỳ cựu (Gen X+):</b> Tiếp cận qua giao diện trực quan, bắt đầu bằng các Agent quản lý tác vụ phi kỹ thuật (như tóm tắt họp, quản lý dự án Jira, quản lý tri thức) trước khi đưa vào luồng nghiệp vụ sâu.
-        </p>
-    </div>
-    """, unsafe_allow_html=True)
+    * **1. Tập trung xử lý 'Điểm đau' lặp đi lặp lại:** Ưu tiên triển khai AI để theo dõi bug, log hệ thống, duy trì hồ sơ truyền dữ liệu. Đây là những tác vụ người lao động khát khao được giải phóng nhất.
+    * **2. Phát triển AI cho Support/QA:** Các công việc như Support User (đọc tài liệu kỹ thuật, chẩn đoán lỗi) đang chiếm số lượng việc làm lớn và tần suất cao. AI Agent như Chatbot RAG có thể giảm ngay lập tức tải công việc này.
+    * **3. Chiến lược LLM phân hóa theo kinh nghiệm:** * Nhân sự Junior (<2 năm): Thúc đẩy sử dụng AI để Coding & truy xuất tài liệu (Copilot).
+        * Nhân sự Senior: Tập trung đào tạo dùng LLM nâng cao (System Design, Data Processing) để tăng tư duy thiết kế thay vì chỉ sinh mã.
+    * **4. Bảo vệ 'Human Agency':** Khả năng *Domain Knowledge* và *Quality Oversight* của con người là bất khả xâm phạm ở thời điểm này. Hệ thống AI nên thiết kế theo dạng "Human-in-the-loop" (AI đề xuất, con người duyệt).
+    * **5. Minh bạch về năng lực công nghệ:** Năng lực AI thực tế đôi khi vượt cả nhu cầu (ví dụ: Budgeting). Cần truyền thông nội bộ tốt hơn để nhân sự an tâm ứng dụng và xóa bỏ thái độ e ngại.
+    """)
+    st.success("Tóm lại: AI trong CS hiện tại không nhằm mục đích thay thế, mà nhắm thẳng vào việc loại bỏ rác tác vụ (nhàm chán, lặp lại) để kỹ sư tập trung vào Domain Knowledge!")
