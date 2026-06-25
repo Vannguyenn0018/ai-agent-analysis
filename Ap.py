@@ -218,7 +218,7 @@ df_final, task_statements = load_and_preprocess_data()
 with st.sidebar:
     # Header sidebar
     st.markdown("<h2 style='text-align: center; color: #1f77b4;'>ĐẠI HỌC NGÂN HÀNG TP.HCM<br>(BUH)</h2>", unsafe_allow_html=True)
-    st.image(r"C:\Users\HP\Downloads\logo-dai-hoc-ngan-hang.jpg", use_container_width=True) # Placeholder Logo BUH
+    st.image("Data/raw/task_statement_with_metadata.csv", use_container_width=True) # Placeholder Logo BUH
     st.markdown("---")
     st.header("📌 Thông tin bài thi")
     st.markdown("**Môn học:** Trực quan hoá Dữ liệu")
