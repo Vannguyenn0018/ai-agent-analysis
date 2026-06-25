@@ -545,122 +545,91 @@ with tab5:
     # ---------------------------------------------------------
 
     # ---------------------------------------------------------
-    # PHẦN 3: CODE MẪU TRIỂN KHAI AI AGENT (HUMAN-IN-THE-LOOP)
+    # PHẦN 3: DEMO TƯƠNG TÁC TRỰC TIẾP (HUMAN-IN-THE-LOOP)
     # ---------------------------------------------------------
-    st.markdown("#### 3. Mô phỏng triển khai AI Agent thực tế (Human-in-the-Loop)")
-    st.info("💻 **Demo:** Đoạn code Python dưới đây minh họa cách xây dựng một Copilot Agent hỗ trợ IT. Agent tự động tra cứu log/tài liệu (giải quyết mong muốn tự động hóa) nhưng luôn yêu cầu Kỹ sư phê duyệt trước khi hành động (bảo vệ Human Agency).")
+    st.markdown("#### 3. Demo Trực tiếp: AI Agent xử lý Ticket (Human-in-the-Loop)")
+    st.info("💡 Bấm nút bên dưới để trải nghiệm quy trình Agent tự động chẩn đoán lỗi và chuyển quyền kiểm soát cuối cùng (Control) cho Kỹ sư.")
+
+    import time
+
+    # Khởi tạo bộ nhớ trạng thái (Session State) cho Streamlit
+    if 'demo_state' not in st.session_state:
+        st.session_state.demo_state = 'init'
     
-    # Hiển thị code bằng st.code để có highlight cú pháp cực đẹp
-    st.code('''import time
-from typing import List, Dict
+    # Giao diện hiển thị Ticket đến
+    st.markdown("**🎫 Ticket Mới nhận:**")
+    st.code("User: USER_9982\nIssue: Web portal nội bộ bị sập, màn hình báo lỗi 503 Service Unavailable.")
+    
+    # TRẠNG THÁI 1: Bắt đầu
+    if st.session_state.demo_state == 'init':
+        if st.button("🚀 Kích hoạt Agent Phân tích", type="primary"):
+            st.session_state.demo_state = 'analyzing'
+            st.rerun()
 
-# ==========================================
-# 1. ĐỊNH NGHĨA CÁC CÔNG CỤ (TOOLS) CHO AGENT
-# (Giải quyết mong muốn tự động hóa: Đọc tài liệu, giám sát lỗi)
-# ==========================================
-
-def search_technical_manuals(query: str) -> str:
-    """
-    Công cụ giả lập: Truy xuất RAG (Retrieval-Augmented Generation) từ kho tài liệu nội bộ.
-    Giải quyết tác vụ: "Read technical manuals..."
-    """
-    print(f"[Agent Tool] Đang tra cứu tài liệu kỹ thuật cho từ khóa: '{query}'...")
-    time.sleep(1)
-    return "Tài liệu hệ thống: Lỗi Error_503 thường do tràn bộ nhớ cache trên server ứng dụng. Cách khắc phục: Xóa cache và khởi động lại service HTTP."
-
-def fetch_system_logs(user_id: str) -> str:
-    """
-    Công cụ giả lập: Kéo log hệ thống của người dùng đang báo lỗi.
-    Giải quyết tác vụ: "Monitor system operation / Conduct computer diagnostics..."
-    """
-    print(f"[Agent Tool] Đang trích xuất log hệ thống cho user {user_id}...")
-    time.sleep(1)
-    return "System Log (10 mins ago): HTTP Service Memory Usage at 99%. Status: Crash Loop."
-
-# ==========================================
-# 2. XÂY DỰNG AGENT VỚI CƠ CHẾ HUMAN-IN-THE-LOOP
-# (Giải quyết Human Agency: Control & Quality Oversight)
-# ==========================================
-
-class ITSupportCopilotAgent:
-    def __init__(self, name="TechSupport_Copilot"):
-        self.name = name
-        # Bộ nhớ ngắn hạn của Agent cho mỗi ticket
-        self.context: List[Dict[str, str]] = []
-
-    def analyze_ticket(self, user_id: str, issue_description: str):
-        """
-        Quy trình xử lý cốt lõi của Agent
-        """
-        print(f"\\n--- BẮT ĐẦU XỬ LÝ TICKET TỪ USER: {user_id} ---")
-        print(f"Vấn đề: {issue_description}\\n")
-
-        # Bước 1: Agent tự động thu thập ngữ cảnh (Giảm thiểu công việc lặp lại)
-        print("🤖 [Agent Đang Suy Nghĩ]: Cần kiểm tra log hệ thống trước...")
-        logs = fetch_system_logs(user_id)
-        self.context.append({"role": "system", "content": f"Logs: {logs}"})
-        
-        # Bước 2: Agent tự động tra cứu giải pháp (Giảm thời gian đọc tài liệu manual)
-        print("🤖 [Agent Đang Suy Nghĩ]: Log báo lỗi bộ nhớ. Cần tìm tài liệu hướng dẫn khắc phục...")
-        manual_info = search_technical_manuals("Memory leak HTTP service crash")
-        self.context.append({"role": "system", "content": f"Manuals: {manual_info}"})
-
-        # Bước 3: Tổng hợp và Đề xuất (Drafting)
-        proposed_solution = self._generate_diagnostic_report()
-        
-        # Bước 4: HUMAN-IN-THE-LOOP (Điểm chạm quyết định)
-        self._request_human_approval(proposed_solution)
-
-    def _generate_diagnostic_report(self) -> str:
-        """Giả lập việc LLM tổng hợp thông tin thành báo cáo chẩn đoán."""
-        print("🤖 [Agent Đang Soạn Thảo]: Đang tổng hợp báo cáo chẩn đoán...\\n")
-        time.sleep(1)
-        report = (
-            "DỰ ĐOÁN NGUYÊN NHÂN: Server bị crash do tràn bộ nhớ cache (99% Usage).\\n"
-            "ĐỀ XUẤT HÀNH ĐỘNG:\\n"
-            "1. Clear cache bằng lệnh: `sudo systemctl clear-cache httpd`\\n"
-            "2. Restart service: `sudo systemctl restart httpd`\\n"
-            "3. Gửi email thông báo cho user.\\n"
-        )
-        return report
-
-    def _request_human_approval(self, proposed_solution: str):
-        """
-        Chuyển quyền kiểm soát lại cho Kỹ sư CS (Con người).
-        Đáp ứng tiêu chí "Domain Knowledge" và "Control" trong Radar Chart.
-        """
-        print("==================================================")
-        print("🚨 YÊU CẦU PHÊ DUYỆT TỪ CON NGƯỜI (HUMAN OVERSIGHT) 🚨")
-        print("==================================================")
-        print(proposed_solution)
-        
-        while True:
-            decision = input("Kỹ sư hỗ trợ, bạn có duyệt phương án này không? (Y: Duyệt và Thực thi / N: Chỉnh sửa / R: Từ chối): ").strip().upper()
+    # TRẠNG THÁI 2: Agent đang suy nghĩ (Dùng st.status để tạo hiệu ứng loading đẹp mắt)
+    if st.session_state.demo_state == 'analyzing':
+        with st.status("🤖 Agent đang thu thập ngữ cảnh và tra cứu...", expanded=True) as status:
+            st.write("Đang trích xuất log hệ thống của USER_9982...")
+            time.sleep(1.5) # Giả lập thời gian chạy
+            st.code("System Log (10 mins ago): HTTP Service Memory Usage at 99%. Status: Crash Loop.")
             
-            if decision == 'Y':
-                print("✅ [Human Agency]: Đã duyệt. Agent đang thực thi các lệnh sửa lỗi và đóng ticket.")
-                # Gọi các hàm execute command ở đây
-                break
-            elif decision == 'N':
-                feedback = input("Nhập phản hồi/chỉnh sửa của bạn cho Agent: ")
-                print(f"🔄 [Agent Học Hỏi]: Đang cập nhật giải pháp dựa trên kiến thức chuyên môn (Domain Knowledge) của bạn: '{feedback}'...")
-                # Đưa feedback lại vào prompt của LLM để generate lại
-                break
-            elif decision == 'R':
-                print("❌ [Human Agency]: Đã từ chối đề xuất. Chuyển hoàn toàn quyền xử lý cho Kỹ sư.")
-                break
-            else:
-                print("Lựa chọn không hợp lệ. Vui lòng nhập Y, N, hoặc R.")
+            st.write("Đang tra cứu tài liệu hướng dẫn (RAG)...")
+            time.sleep(1.5)
+            st.code("Tài liệu nội bộ: Lỗi Error_503 thường do tràn bộ nhớ cache. Khắc phục: Xóa cache và restart HTTP service.")
+            
+            st.write("Đang soạn thảo báo cáo chẩn đoán...")
+            time.sleep(1)
+            
+            status.update(label="✅ Agent đã hoàn tất phân tích. Đang chờ phê duyệt!", state="complete", expanded=False)
+            st.session_state.demo_state = 'waiting_approval'
+            st.rerun()
 
-# ==========================================
-# 3. CHẠY THỬ NGHIỆM
-# ==========================================
-if __name__ == "__main__":
-    copilot = ITSupportCopilotAgent()
-    
-    # Giả lập một ticket mới đẩy vào hệ thống
-    incoming_user_id = "USER_9982"
-    incoming_issue = "Web portal nội bộ của tôi bị sập, màn hình báo lỗi 503 Service Unavailable."
-    
-    copilot.analyze_ticket(user_id=incoming_user_id, issue_description=incoming_issue)
-    ''', language='python')
+    # TRẠNG THÁI 3: Điểm chạm của con người (Human-in-the-loop)
+    if st.session_state.demo_state == 'waiting_approval':
+        st.warning("🚨 **YÊU CẦU PHÊ DUYỆT TỪ CON NGƯỜI (HUMAN OVERSIGHT)** 🚨")
+        
+        st.markdown("""
+        **DỰ ĐOÁN NGUYÊN NHÂN:** Server bị crash do tràn bộ nhớ cache (99% Usage).
+        
+        **ĐỀ XUẤT HÀNH ĐỘNG CỦA AGENT:**
+        1. Clear cache bằng lệnh: `sudo systemctl clear-cache httpd`
+        2. Restart service: `sudo systemctl restart httpd`
+        3. Gửi email thông báo khắc phục sự cố cho user.
+        """)
+        
+        st.markdown("---")
+        st.markdown("**Kỹ sư CS (Bạn), bạn có phê duyệt phương án này không?**")
+        
+        # Tạo 3 nút bấm nằm ngang nhau
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            if st.button("✅ Duyệt & Thực thi", use_container_width=True):
+                st.session_state.demo_state = 'approved'
+                st.rerun()
+        with col2:
+            if st.button("🔄 Yêu cầu chỉnh sửa", use_container_width=True):
+                st.session_state.demo_state = 'edit'
+                st.rerun()
+        with col3:
+            if st.button("❌ Từ chối đề xuất", type="primary", use_container_width=True):
+                st.session_state.demo_state = 'rejected'
+                st.rerun()
+
+    # TRẠNG THÁI 4: KẾT QUẢ
+    if st.session_state.demo_state == 'approved':
+        st.success("✅ **[Human Agency]: Đã phê duyệt.** Agent đang tự động thực thi các lệnh sửa lỗi trên server và đóng ticket.")
+        if st.button("🔄 Chạy lại Demo"):
+            st.session_state.demo_state = 'init'
+            st.rerun()
+
+    if st.session_state.demo_state == 'edit':
+        st.info("🔄 **[Agent Học Hỏi]:** Agent đã dừng thực thi. Đang chờ bạn nhập thêm kiến thức chuyên môn (Domain Knowledge) để tạo lại giải pháp mới.")
+        if st.button("🔄 Chạy lại Demo"):
+            st.session_state.demo_state = 'init'
+            st.rerun()
+
+    if st.session_state.demo_state == 'rejected':
+        st.error("❌ **[Human Agency]: Đã từ chối.** Agent dừng toàn bộ hoạt động. Quyền xử lý ticket được chuyển giao hoàn toàn lại cho Kỹ sư CS.")
+        if st.button("🔄 Chạy lại Demo"):
+            st.session_state.demo_state = 'init'
+            st.rerun()
