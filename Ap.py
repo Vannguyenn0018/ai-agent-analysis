@@ -477,10 +477,17 @@ with tab3:
 # ==========================================
 # TAB 4: NĂNG LỰC THỰC TẾ & KHOẢNG CÁCH (RQ3, RQ4)
 # ==========================================
+# ==========================================
+# TAB 4: NĂNG LỰC THỰC TẾ & KHOẢNG CÁCH (RQ3, RQ4)
+# ==========================================
 with tab4:
     st.subheader("Câu hỏi 3 & 4: Khả năng của AI đến đâu? Điểm bùng phát nằm ở đâu?")
     
-    st.markdown("#### Biểu đồ Dumbbell: Khoảng cách giữa Mong muốn (Đỏ) và Năng lực AI (Xanh)")
+    # ---------------------------------------------------------
+    # PHẦN 1: BIỂU ĐỒ DUMBBELL (KHOẢNG CÁCH TỰ ĐỘNG HÓA)
+    # ---------------------------------------------------------
+    st.markdown("#### 1. Khoảng cách giữa Mong muốn tự động hóa và Năng lực AI")
+    
     task_gap_data = df_final.groupby('Task')[['Automation Desire Rating', 'Automation Capacity Rating']].mean()
     top_15_gap = task_gap_data.sort_values(by='Automation Desire Rating', ascending=False).head(10)
     
@@ -489,17 +496,78 @@ with tab4:
     
     ax_dumb.hlines(y=y_pos, xmin=top_15_gap.min(axis=1), xmax=top_15_gap.max(axis=1), color='gray', alpha=0.5, linewidth=2)
     ax_dumb.scatter(top_15_gap['Automation Desire Rating'], y_pos, color='red', s=100, label='Mong muốn', zorder=3)
-    ax_dumb.scatter(top_15_gap['Automation Capacity Rating'], y_pos, color='green', s=100, label='Năng lực', zorder=3)
+    ax_dumb.scatter(top_15_gap['Automation Capacity Rating'], y_pos, color='green', s=100, label='Năng lực AI', zorder=3)
     ax_dumb.set_yticks(y_pos)
+    
     # Rút gọn tên Task cho dễ nhìn
     short_tasks = [t[:50]+"..." if len(t)>50 else t for t in top_15_gap.index]
     ax_dumb.set_yticklabels(short_tasks)
     ax_dumb.legend(loc='lower right')
     ax_dumb.invert_yaxis()
+    
     st.pyplot(fig_dumb)
     
-    st.warning("⚠️ **Insight:** Các tác vụ xử lý hồ sơ dữ liệu hàng ngày có mức độ mong muốn rất cao (~4.5) nhưng năng lực AI bị đánh giá chưa tới tầm (~3.5). Khoảng cách lớn giữa mức độ mong muốn và năng lực AI hiện tại tập trung ở các tác vụ giám sát hệ thống, theo dõi sự cố và quản lý vận hành hằng ngày, cho thấy nhân sự CNTT đang kỳ vọng AI hỗ trợ mạnh hơn trong các công việc vận hành phức tạp và liên tục, nhưng công nghệ hiện tại vẫn chưa đáp ứng được kỳ vọng này.")
+    st.warning("⚠️ **Trái ngọt chưa với tới (Gap Lớn):** Các tác vụ xử lý hồ sơ dữ liệu hàng ngày có mức độ mong muốn rất cao (~4.5) nhưng năng lực AI bị đánh giá chưa tới tầm (~3.5). Đây là **ĐIỂM BÙNG PHÁT** để các tổ chức công nghệ R&D công cụ mới.")
 
+    st.markdown("<br><hr><br>", unsafe_allow_html=True)
+
+    # ---------------------------------------------------------
+    # PHẦN 2: MA TRẬN ƯU TIÊN TÁC VỤ (BUBBLE CHART)
+    # ---------------------------------------------------------
+    st.markdown("#### 2. Ma trận ưu tiên tác vụ: Năng lực AI, Mức độ kiểm soát & Độ quan trọng")
+    
+    # Tiền xử lý dữ liệu (Tìm đúng tên cột Human Agency Scale Rating do quá trình merge)
+    human_agency_col = 'Human Agency Scale Rating'
+    if 'Human Agency Scale Rating_x' in df_final.columns:
+        human_agency_col = 'Human Agency Scale Rating_x'
+    elif 'Human Agency Scale Rating_worker_desire' in df_final.columns:
+        human_agency_col = 'Human Agency Scale Rating_worker_desire'
+
+    # Nhóm dữ liệu và tính trung bình
+    if human_agency_col in df_final.columns and 'Importance' in df_final.columns:
+        task_priority_data = df_final.groupby(['Task ID', 'Task']).agg(
+            mean_automation_capacity=('Automation Capacity Rating', 'mean'),
+            mean_human_agency=(human_agency_col, 'mean'),
+            mean_importance=('Importance', 'mean')
+        ).reset_index()
+
+        # Loại bỏ dữ liệu trống
+        task_priority_data.dropna(subset=['mean_automation_capacity', 'mean_human_agency', 'mean_importance'], inplace=True)
+
+        # Vẽ biểu đồ Bubble Chart
+        fig_bubble, ax_bubble = plt.subplots(figsize=(14, 8))
+        sns.scatterplot(
+            data=task_priority_data,
+            x='mean_automation_capacity',
+            y='mean_human_agency',
+            size='mean_importance', 
+            hue='mean_importance', 
+            sizes=(100, 1500), # Độ lớn của bong bóng
+            alpha=0.7,
+            palette='viridis', 
+            ax=ax_bubble
+        )
+
+        # Tuỳ chỉnh Label và trục
+        ax_bubble.set_title('Ma trận ưu tiên tác vụ: Năng lực AI, Mức độ kiểm soát con người & Độ quan trọng', fontsize=14, pad=15, fontweight='bold')
+        ax_bubble.set_xlabel('Khả năng tự động hóa (Automation Capacity - Expert Rating)', fontsize=11)
+        ax_bubble.set_ylabel('Mức độ cần con người kiểm soát (Human Agency Scale Rating)', fontsize=11)
+        
+        # Cố định giới hạn trục từ 0.8 đến 5.2 cho giống ảnh
+        ax_bubble.set_xlim(0.8, 5.2)
+        ax_bubble.set_ylim(0.8, 5.2)
+        ax_bubble.grid(True, linestyle='--', alpha=0.6)
+        
+        # Đưa legend ra vị trí gọn gàng
+        plt.legend(bbox_to_anchor=(1.02, 1), loc='upper left', borderaxespad=0)
+        
+        st.pyplot(fig_bubble)
+        
+        # Thẻ Kết luận
+        st.success("💡 **Kết luận:** Biểu đồ này nhấn mạnh rằng trong ngành Khoa học Máy tính, xu hướng hiện tại không phải là thay thế hoàn toàn con người bằng AI, mà là tìm kiếm sự cộng tác giữa AI và con người, đặc biệt là trong các tác vụ quan trọng. Sự kết hợp giữa khả năng của AI và sự giám sát, chuyên môn của con người là chìa khóa để tối ưu hóa hiệu quả và chất lượng công việc.")
+    else:
+        st.error("Gawin báo lỗi: Không tìm thấy cột dữ liệu cần thiết để vẽ biểu đồ Bubble Chart. Cậu kiểm tra lại dataframe gốc nhé!")
+        
 # ==========================================
 # TAB 5: KHUYẾN NGHỊ (THEO DATA)
 # ==========================================
