@@ -415,6 +415,13 @@ with tab3:
     st.pyplot(fig_bar)
 
     st.markdown("<br>", unsafe_allow_html=True) # Thêm khoảng trắng cho thoáng mắt
+    st.markdom(""" **Tần suất các lý do muốn tự động hóa:**
+
+- **Free Time (Có thêm thời gian rảnh):** Đây là lý do hàng đầu, với khoảng 81.89% người muốn tự động hóa vì mục đích này.
+- **Repetitive (Công việc lặp đi lặp lại):** Lý do phổ biến thứ hai, với khoảng 79.92% người mong muốn tự động hóa các tác vụ lặp lại.
+- **Human Error (Giảm lỗi do con người):** Khoảng 50.24% người đồng ý với lý do này.
+
+- **Stress (Giảm căng thẳng), Difficulty (Giảm độ khó), Scale (Mở rộng quy mô):** Các lý do này ít phổ biến hơn, với tỷ lệ đồng ý lần lượt là ~38.98%, ~35.20% và ~34.80%.""")
     st.markdown("---") # Kẻ một đường ngang phân cách nhẹ nhàng
     st.markdown("<br>", unsafe_allow_html=True)
 
