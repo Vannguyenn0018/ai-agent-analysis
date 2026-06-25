@@ -147,10 +147,10 @@ st.markdown("""
 def load_and_preprocess_data():
     # Đọc dữ liệu
     try:
-        metadata = pd.read_csv(r"C:\Users\HP\Downloads\workbank\domain_worker_desires.csv")
-        desires = pd.read_csv(r"C:\Users\HP\Downloads\workbank\domain_worker_metadata.csv")
-        task_statements = pd.read_csv(r"C:\Users\HP\Downloads\workbank\task_statement_with_metadata.csv")
-        experts = pd.read_csv(r"C:\Users\HP\Downloads\workbank\expert_rated_technological_capability.csv")
+        metadata = pd.read_csv("Data/raw/domain_worker_metadata.csv")
+        desires = pd.read_csv("Data/raw/domain_worker_desires.csv")
+        task_statements = pd.read_csv("Data/raw/task_statement_with_metadata.csv")
+        experts = pd.read_csv("Data/raw/expert_rated_technological_capability.csv")
     except FileNotFoundError:
         st.error("Gawin nhắc nhẹ: Cậu nhớ để 4 file CSV vào cùng thư mục với file code này nhé!")
         st.stop()
